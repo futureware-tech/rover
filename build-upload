@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+remote_binary=$(basename "${1?no package name provided}" .go)
+local_binary=$(mktemp)
+trap "rm -f $local_binary" EXIT
+repo=$(basename $(git rev-parse --show-toplevel))
+
+GOOS=linux GOARCH=arm go build -o "$local_binary" "$1"
+scp "$local_binary" ${REMOTE_HOST:-pi}:"$repo/$remote_binary"
