@@ -2,10 +2,15 @@
 
 set -e
 
-remote_binary=$(basename "${1?no package name provided}" .go)
 local_binary=$(mktemp)
 trap "rm -f $local_binary" EXIT
 repo=$(basename $(git rev-parse --show-toplevel))
+remote_binary=$repo/$(basename "${1?no package name provided}" .go)
 
+echo "[1/3] Building ${remote_binary}..."
 GOOS=linux GOARCH=arm go build -o "$local_binary" "$1"
-scp "$local_binary" ${REMOTE_HOST:-pi}:"$repo/$remote_binary"
+echo "[2/3] Copying $remote_binary to ${REMOTE_HOST:=pi}..."
+scp "$local_binary" ${REMOTE_HOST}:"$remote_binary"
+
+echo "[3/3] Starting $remote_binary at ${REMOTE_HOST}..."
+ssh ${REMOTE_HOST} "$remote_binary"
