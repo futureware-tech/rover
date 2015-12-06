@@ -10,11 +10,21 @@ import (
 	_ "github.com/kidoman/embd/host/all"
 )
 
+const (
+	DHT11_SENSOR = 4
+)
+
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if e := drivers.ResetGPIOPin(DHT11_SENSOR); e != nil {
+		log.Panic(e)
+	}
+
 	embd.InitGPIO()
 	defer embd.CloseGPIO()
 
-	if pin, e := embd.NewDigitalPin(4); e != nil {
+	if pin, e := embd.NewDigitalPin(DHT11_SENSOR); e != nil {
 		log.Panic(e)
 	} else {
 		defer pin.Close()
