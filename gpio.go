@@ -77,8 +77,8 @@ func main() {
 				fmt.Println(e)
 			} else {
 				fmt.Printf("%d*C, %d%%\n", t, h)
-				break
 			}
+			time.Sleep(1 * time.Second)
 		}
 	}
 }
