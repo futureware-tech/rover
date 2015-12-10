@@ -51,7 +51,13 @@ func NewLidar(i2cbus, addr byte) *Lidar {
 	}
 	time.Sleep(300 * time.Millisecond)
 	return &lSensor
+}
 
+//CloseLidar closes releases the resources associated with the bus
+func (ls *Lidar) CloseLidar() {
+	if err := ls.bus.Close(); err == nil {
+		log.Println(err)
+	}
 }
 
 // GetStatus gets Mode/Status of sensor
@@ -59,9 +65,9 @@ func (ls *Lidar) GetStatus() (byte, error) {
 
 	val, err := ls.bus.ReadByteFromReg(ls.address, 0x01)
 	if err == nil {
-		log.Println("Status ", val)
+		log.Printf("Status: %.8b\n ", val)
 	} else {
-		log.Panic("GetStatus ", err)
+		log.Println("GetStatus ", err)
 		return 0, err
 	}
 	return val, nil
@@ -84,13 +90,13 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 		}
 
 		if wErr != nil {
-			log.Panic("Write ", wErr)
+			log.Println("Write ", wErr)
 			return 0, wErr
 		}
 
 		time.Sleep(100 * time.Millisecond)
 	} else {
-		log.Panic(errSt)
+		log.Println(errSt)
 		return 0, errSt
 	}
 
@@ -98,27 +104,26 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 	if errSt == nil {
 		v1, rErr := ls.bus.ReadByteFromReg(ls.address, 0x10)
 		if rErr != nil {
-			log.Panic("Read ", rErr)
+			log.Println("Read ", rErr)
 			return 0, rErr
 		}
 		v2, rErr := ls.bus.ReadByteFromReg(ls.address, 0x0f)
 		if rErr != nil {
-			log.Panic("Read", rErr)
+			log.Println("Read", rErr)
 			return 0, rErr
 		}
 
 		return ((int(v2) << 8) + int(v1)), nil
 
 	}
-	log.Panic(errSt)
+	log.Println(errSt)
 	return 0, errSt
-
 }
 
 func main() {
 	log.SetFlags(log.Lshortfile)
 	lidar := NewLidar(1, 0x62) // 0x62 the default LidarLite address
-	defer lidar.bus.Close()
+	defer lidar.CloseLidar()
 	for {
 		if val, err := lidar.Distance(true); err == nil {
 			fmt.Println(val)
