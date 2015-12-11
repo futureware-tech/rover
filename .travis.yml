@@ -2,7 +2,8 @@ language: go
 
 go:
     - 1.5
-    - release
+    # - release (it's 1.4 for now, and cross-compiling doesn't work too well)
+    - tip
 
 install:
     - go get github.com/alecthomas/gometalinter
