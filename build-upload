@@ -2,7 +2,8 @@
 
 set -e
 
-local_binary=$(mktemp --tmpdir -- "build-upload.${1?no package name provided}.XXXXXXXXX")
+local_binary=$(mktemp --tmpdir -- \
+	"build-upload.$(basename ${1?no package name provided}).XXXXXXXXX")
 trap 'rm -f "$local_binary"' EXIT
 
 repo=$(basename $(git rev-parse --show-toplevel))
