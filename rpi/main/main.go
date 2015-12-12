@@ -1,7 +1,25 @@
 package main
 
-import "github.com/dasfoo/rover/rpi"
+import (
+	"fmt"
+	"time"
+
+	"github.com/dasfoo/rover/rpi"
+)
 
 func main() {
-	rpi.F()
+	for {
+		out, err := rpi.SendVCHICommand("measure_temp")
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println("temp:", out)
+
+		out, err = rpi.SendVCHICommand("measure_volts")
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println("volts:", out)
+		time.Sleep(time.Second)
+	}
 }
