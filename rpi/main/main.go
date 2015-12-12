@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dasfoo/rover/rpi/gpio"
 	"github.com/dasfoo/rover/rpi/vchi"
 )
 
 func main() {
+	p := gpio.Pin(4)
 	for {
 		out, err := vchi.Send("measure_temp")
 		if err != nil {
@@ -21,5 +23,7 @@ func main() {
 		}
 		fmt.Println("volts:", out)
 		time.Sleep(time.Second)
+
+		fmt.Println("Pin 4 status:", p.Read())
 	}
 }
