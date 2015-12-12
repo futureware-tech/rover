@@ -1,8 +1,6 @@
 package rpi
 
 /*
-#cgo CFLAGS: -I ${SRCDIR}
-
 #cgo amd64 CFLAGS: -I ${SRCDIR}/amd64
 
 #cgo arm CFLAGS: -I ${SRCDIR}/arm/opt/vc/include
@@ -11,7 +9,7 @@ package rpi
 #cgo arm LDFLAGS: -L ${SRCDIR}/arm/opt/vc/lib
 #cgo arm LDFLAGS: -lbcm_host -lvcos -lvchiq_arm
 
-#include <vcgencmd.c>
+#include "vcgencmd.h"
 #include <stdlib.h>
 */
 import "C"

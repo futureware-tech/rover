@@ -2,12 +2,14 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include "vcgencmd.h"
+
 static VCHI_INSTANCE_T vchi;
 static VCHI_CONNECTION_T *vchi_connections;
 
 static char response[4096];
 
-static void Start() {
+void Start() {
 	bcm_host_init();
 	vcos_init();
 	if ((errno = vchi_initialise(&vchi)) != 0) {
@@ -22,7 +24,7 @@ static void Start() {
 	errno = 0;
 }
 
-static void Stop() {
+void Stop() {
 	vc_gencmd_stop();
 	if ((errno = vchi_disconnect(vchi)) != 0) {
 		return;
@@ -30,7 +32,7 @@ static void Stop() {
 	errno = 0;
 }
 
-static const char *Send(const char *command) {
+const char *Send(const char *command) {
 	if ((errno = vc_gencmd(response, sizeof(response), command)) != 0) {
 		return NULL;
 	}
