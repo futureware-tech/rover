@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 /* gpio modes. */
 
 #define PI_INPUT  0
@@ -22,5 +24,8 @@ void gpioSetPullUpDown(unsigned, unsigned);
 int gpioRead(unsigned);
 void gpioWrite(unsigned, unsigned);
 void gpioTrigger(unsigned, unsigned, unsigned);
+
+uint64_t gpioReadPulse(unsigned, uint64_t, int);
+int gpioReadPulses(unsigned, uint64_t, unsigned, uint8_t *);
 
 int gpioInitialise(void);
