@@ -29,8 +29,9 @@ type Lidar struct {
 // Health - 1 if is good, 0 if is bad
 // ErrorDetection - Process error detected/measurement invalid
 // EyeSafe - This bit will go high if eye-safety protection has been activated
-//const (
-// Ready           = 1 << iota
+const (
+	Ready = 1 << iota
+
 // RefOverflow     = 1 << iota
 // SigOverflow     = 1 << iota
 // SignalNotValid  = 1 << iota
@@ -38,7 +39,7 @@ type Lidar struct {
 // Health          = 1 << iota
 // ErrorDetection  = 1 << iota
 // EyeSafe         = 1 << iota
-//)
+)
 
 // NewLidar sets the configuration for the sensor
 // Write 0x00 to Register 0x00 reset FPGA. Re-loads FPGA from internal Flash
@@ -120,6 +121,41 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 	return 0, errSt
 }
 
+// Velocity is measured by observing the change in distance over a fixed time
+// of perion
+// TODO 0x04 Check Mode Control
+func (ls *Lidar) Velocity() (int, error) {
+	// Write 0xa0 to 0x04 to switch on velocity mode
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x04, 0xa0); wErr != nil {
+		log.Println("Write ", wErr)
+		return -1, wErr
+	}
+	// Write 0x04 to register 0x00 to start getting distance readings
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x00, 0x04); wErr != nil {
+		log.Println("Write ", wErr)
+		return -1, wErr
+	}
+	//Read 1 byte from register 0x09 to get velocity measurement
+	for {
+		// Sensor is ready for reading
+		stVal, err := ls.GetStatus()
+		if err != nil {
+			log.Println(err)
+			return -1, err
+		}
+		if (stVal & Ready) == 0 {
+			val, e := ls.bus.ReadByteFromReg(ls.address, 0x09)
+			if err != nil {
+				log.Println(e)
+				return -1, e
+			}
+			return int(val), nil
+		}
+		time.Sleep(300 * time.Microsecond)
+
+	}
+}
+
 func main() {
 	log.SetFlags(log.Lshortfile)
 	lidar := NewLidar(1, 0x62) // 0x62 the default LidarLite address
@@ -127,7 +163,11 @@ func main() {
 	for {
 		if val, err := lidar.Distance(true); err == nil {
 			fmt.Println(val)
+			time.Sleep(1 * time.Second)
 		}
+		/*if val, err := lidar.Velocity(); err == nil {
+			fmt.Println(val)
+		}*/
 	}
 
 }
