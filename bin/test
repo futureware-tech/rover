@@ -14,7 +14,7 @@ CGO_ENABLED=1 CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ \
 	GOOS=linux GOARCH=arm go build -o "$local_binary" "$1"
 
 echo "[2/3] Copying $remote_binary to ${REMOTE_HOST:=pi}..."
-scp "$local_binary" ${REMOTE_HOST}:"$remote_binary"
+gzip -c "$local_binary" | ssh ${REMOTE_HOST} "gzip -d >$remote_binary"
 
 echo "[3/3] Starting $remote_binary at ${REMOTE_HOST}..."
-ssh ${REMOTE_HOST} "$remote_binary"
+ssh ${REMOTE_HOST} "chmod +x $remote_binary; $remote_binary"

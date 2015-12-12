@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+set -e
+
+pushd $(git rev-parse --show-toplevel) >/dev/null
+
+# TODO: add 'pi' to .ssh/config
+# TODO: add @reboot ssh-reverse-tunnel to crontab
+
+go get -u github.com/alecthomas/gometalinter
+$GOPATH/bin/gometalinter --install --update
+precommit=.git/hooks/pre-commit
+cat >"$precommit" <<'EOF'
+#!/usr/bin/env bash
+set -e
+go get -u ./...
+go test -v ./...
+$GOPATH/bin/gometalinter --deadline 1m ./...
+EOF
+chmod +x "$precommit"
+
+cd rpi
+firmware=https://github.com/raspberrypi/firmware.git
+if [ -e arm ]; then
+	cd arm; git pull $firmware master
+else
+	git clone --depth 1 $firmware arm
+fi
+
+popd >/dev/null
