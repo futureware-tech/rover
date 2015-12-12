@@ -6,14 +6,16 @@
    Slightly modified tiny_gpio from http://abyz.co.uk/rpi/pigpio/examples.html
 */
 
+#include "gpio.h"
+
 #include <stdio.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 
 #define GPSET0 7
 #define GPCLR0 10
@@ -75,15 +77,52 @@ void gpioWrite(unsigned gpio, unsigned level)
    else            *(gpioReg + GPSET0 + PI_BANK) = PI_BIT;
 }
 
-void gpioTrigger(unsigned gpio, unsigned pulseLen, unsigned level)
+void gpioTrigger(unsigned gpio, unsigned pulse_usec, unsigned level)
 {
    if (level == 0) *(gpioReg + GPCLR0 + PI_BANK) = PI_BIT;
    else            *(gpioReg + GPSET0 + PI_BANK) = PI_BIT;
 
-   usleep(pulseLen);
+   usleep(pulse_usec);
 
    if (level != 0) *(gpioReg + GPCLR0 + PI_BANK) = PI_BIT;
    else            *(gpioReg + GPSET0 + PI_BANK) = PI_BIT;
+}
+
+#define CLOCK_KIND CLOCK_MONOTONIC
+//#define CLOCK_KIND CLOCK_REALTIME
+
+#define time_nsec(t) ((uint64_t)((t).tv_sec)*1000*1000*1000 + (t).tv_nsec)
+
+uint64_t gpioReadPulse(unsigned gpio, uint64_t timeout_usec, int value) {
+	struct timespec start_t, now_t;
+	uint64_t timeout_nsec = timeout_usec * 1000, pulse_duration = 0;
+
+	clock_gettime(CLOCK_KIND, &start_t);
+	while (gpioRead(gpio) == value) {
+		clock_gettime(CLOCK_KIND, &now_t);
+		pulse_duration = time_nsec(now_t) - time_nsec(start_t);
+		if (pulse_duration >= timeout_nsec) {
+			break;
+		}
+	}
+	return pulse_duration / 1000;
+}
+
+int gpioReadPulses(unsigned gpio, uint64_t timeout_usec, unsigned count, uint8_t *pulses) {
+	unsigned offset, bit, i;
+	uint64_t pivot, pulse;
+	for (i = 0; i < count; ++i) {
+		if ((pivot = gpioReadPulse(gpio, timeout_usec, 0)) >= timeout_usec) {
+			return 0;
+		}
+		if ((pulse = gpioReadPulse(gpio, timeout_usec, 1)) >= timeout_usec) {
+			return 0;
+		}
+		offset = i >> 3;
+		bit = 7 - (i & 7);
+		pulses[offset] |= (pulse > pivot) << bit;
+	}
+	return 1;
 }
 
 int gpioInitialise(void)
@@ -94,6 +133,7 @@ int gpioInitialise(void)
 
    if (fd < 0)
    {
+      // TODO: return proper error code
       fprintf(stderr, "failed to open /dev/gpiomem\n");
       return -1;
    }
