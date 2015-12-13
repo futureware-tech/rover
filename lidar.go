@@ -29,8 +29,9 @@ type Lidar struct {
 // Health - 1 if is good, 0 if is bad
 // ErrorDetection - Process error detected/measurement invalid
 // EyeSafe - This bit will go high if eye-safety protection has been activated
-//const (
-// Ready           = 1 << iota
+const (
+	Ready = 1 << iota
+
 // RefOverflow     = 1 << iota
 // SigOverflow     = 1 << iota
 // SignalNotValid  = 1 << iota
@@ -38,7 +39,7 @@ type Lidar struct {
 // Health          = 1 << iota
 // ErrorDetection  = 1 << iota
 // EyeSafe         = 1 << iota
-//)
+)
 
 // NewLidar sets the configuration for the sensor
 // Write 0x00 to Register 0x00 reset FPGA. Re-loads FPGA from internal Flash
@@ -55,7 +56,7 @@ func NewLidar(i2cbus, addr byte) *Lidar {
 
 //CloseLidar closes releases the resources associated with the bus
 func (ls *Lidar) CloseLidar() {
-	if err := ls.bus.Close(); err == nil {
+	if err := ls.bus.Close(); err != nil {
 		log.Println(err)
 	}
 }
@@ -65,9 +66,9 @@ func (ls *Lidar) GetStatus() (byte, error) {
 
 	val, err := ls.bus.ReadByteFromReg(ls.address, 0x01)
 	if err == nil {
-		log.Printf("Status: %.8b\n ", val)
+		log.Printf("Status: %.8b\n", val)
 	} else {
-		log.Println("GetStatus ", err)
+		log.Println("GetStatus", err)
 		return 0, err
 	}
 	return val, nil
@@ -120,14 +121,115 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 	return 0, errSt
 }
 
+// Velocity is measured by observing the change in distance over a fixed time
+// of perion
+// TODO 0x04 Check Mode Control
+func (ls *Lidar) Velocity() (int, error) {
+	// Write 0xa0 to 0x04 to switch on velocity mode
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x04, 0xa0); wErr != nil {
+		log.Println("Write ", wErr)
+		return -1, wErr
+	}
+	// Write 0x04 to register 0x00 to start getting distance readings
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x00, 0x04); wErr != nil {
+		log.Println("Write ", wErr)
+		return -1, wErr
+	}
+	//Read 1 byte from register 0x09 to get velocity measurement
+	for {
+		// Sensor is ready for reading
+		stVal, err := ls.GetStatus()
+		if err != nil {
+			log.Println(err)
+			return -1, err
+		}
+		if (stVal & Ready) == 0 {
+			val, e := ls.bus.ReadByteFromReg(ls.address, 0x09)
+			if e != nil {
+				log.Println(e)
+				return -1, e
+			}
+			return int(val), nil
+		}
+		time.Sleep(300 * time.Microsecond)
+
+	}
+}
+
+// BeginContinuous allows to tell the sensor to take a certain number (or
+// infinite) readings allowing you to read from it at a continuous rate.
+// modePinLow tells the mode pin to go low when a new reading is available.
+// TODO search more about interval
+func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byte) error {
+
+	// Register 0x45 sets the time between measurements. Min val os 0x02
+	// for proper operations.
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x45, interval); wErr != nil {
+		log.Println(wErr)
+		return wErr
+	}
+
+	if modePinLow {
+		if wErr := ls.bus.WriteByteToReg(ls.address, 0x04, 0x21); wErr != nil {
+			log.Print(wErr)
+			return wErr
+		}
+
+	} else {
+		// Set register 0x04 to 0x20 to look at "NON-default" value of velocity
+		if wErr := ls.bus.WriteByteToReg(ls.address, 0x04, 0x20); wErr != nil {
+			log.Print(wErr)
+			return wErr
+		}
+	}
+	// Set the number of readings, 0xfe = 254 readings, 0x01 = 1 reading and
+	// 0xff = continuous readings
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x11, numberOfReadings); wErr != nil {
+		log.Println(wErr)
+		return wErr
+	}
+
+	// Initiate reading distance
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x00, 0x04); wErr != nil {
+		log.Println(wErr)
+		return wErr
+	}
+	return nil
+}
+
+//DistanceContinuous reads in continuous mode
+func (ls *Lidar) DistanceContinuous() (int, error) {
+
+	val, rErr := ls.bus.ReadWordFromReg(ls.address, 0x8f)
+	if rErr != nil {
+		log.Println("Read", rErr)
+		return -1, rErr
+	}
+
+	return int(val), nil
+}
+
 func main() {
 	log.SetFlags(log.Lshortfile)
 	lidar := NewLidar(1, 0x62) // 0x62 the default LidarLite address
 	defer lidar.CloseLidar()
-	for {
+	/*for {
 		if val, err := lidar.Distance(true); err == nil {
 			fmt.Println(val)
+			time.Sleep(1 * time.Second)
+		}
+		if val, err := lidar.Velocity(); err == nil {
+			fmt.Println(val)
+		}
+	}*/
+
+	if err := lidar.BeginContinuous(true, 0x08, 0xff); err == nil {
+		for {
+			val, e := lidar.DistanceContinuous()
+
+			if e == nil {
+				fmt.Println(val)
+			}
 		}
 	}
-
 }
