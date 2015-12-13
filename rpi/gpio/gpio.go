@@ -24,6 +24,7 @@ uint16_t DHT11(unsigned pin) {
 }
 */
 import "C"
+import "time"
 
 func init() {
 	C.gpioInitialise()
@@ -81,6 +82,15 @@ func (pin Pin) Write(value bool) {
 	C.gpioWrite(C.uint(pin), intValue)
 }
 
+// Trigger the state of the pin to value for t
+func (pin Pin) Trigger(t time.Duration, value bool) {
+	var intValue C.uint
+	if value {
+		intValue = 1
+	}
+	C.gpioTrigger(C.uint(pin), C.uint(t.Nanoseconds()/1000), intValue)
+}
+
 // DHT11 reads humidity and temperature from the sensor
 func (pin Pin) DHT11() (byte, byte) {
 	humidityAndTemperature := int(C.DHT11(C.uint(pin)))
@@ -90,5 +100,4 @@ func (pin Pin) DHT11() (byte, byte) {
 
 /*
 void gpioSetPullUpDown(unsigned gpio, unsigned pud)
-void gpioTrigger(unsigned gpio, unsigned pulseLen, unsigned level)
 */
