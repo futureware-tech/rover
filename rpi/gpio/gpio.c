@@ -94,13 +94,15 @@ void gpioTrigger(unsigned gpio, unsigned pulse_usec, unsigned level)
 #define time_nsec(t) ((uint64_t)((t).tv_sec)*1000*1000*1000 + (t).tv_nsec)
 
 uint64_t gpioReadPulse(unsigned gpio, uint64_t timeout_usec, int value) {
-	struct timespec start_t, now_t;
-	uint64_t timeout_nsec = timeout_usec * 1000, pulse_duration = 0;
+	struct timespec t;
+	uint64_t timeout_nsec = timeout_usec * 1000, pulse_duration = 0,
+			 start_nsec;
 
-	clock_gettime(CLOCK_KIND, &start_t);
+	clock_gettime(CLOCK_KIND, &t);
+	start_nsec = time_nsec(t);
 	while (gpioRead(gpio) == value) {
-		clock_gettime(CLOCK_KIND, &now_t);
-		pulse_duration = time_nsec(now_t) - time_nsec(start_t);
+		clock_gettime(CLOCK_KIND, &t);
+		pulse_duration = time_nsec(t) - start_nsec;
 		if (pulse_duration >= timeout_nsec) {
 			break;
 		}
