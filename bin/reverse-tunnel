@@ -6,6 +6,8 @@ while :; do
 		-o 'ServerAliveInterval 30' \
 		-o 'ConnectTimeout 5' \
 		-o 'BatchMode yes' \
-		-N -R ${REMOTE_PORT?}:localhost:22 ${REMOTE_HOST?}
+		-N -R \
+		${REMOTE_INTERFACE-127.0.0.1}:${REMOTE_PORT?}:localhost:${LOCAL_PORT-22} \
+		${REMOTE_HOST?}
 	sleep 1
 done
