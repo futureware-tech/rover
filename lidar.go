@@ -11,6 +11,7 @@ import (
 
 // Lidar is structure to access basic functions of LidarLite
 // LidarLite_V2 blue label
+// Model LL-905-PIN-02
 // Documentation on http://lidarlite.com/docs/v2/specs_and_hardware
 type Lidar struct {
 	bus     embd.I2CBus
@@ -56,6 +57,10 @@ func NewLidar(i2cbus, addr byte) *Lidar {
 
 //CloseLidar closes releases the resources associated with the bus
 func (ls *Lidar) CloseLidar() {
+	// Reset FPGA. All registers return to default values
+	if e := ls.bus.WriteByteToReg(ls.address, 0x00, 0x00); e != nil {
+		log.Panic("Write ", e)
+	}
 	if err := ls.bus.Close(); err != nil {
 		log.Println(err)
 	}
