@@ -4,8 +4,7 @@ set -e
 
 : ${1?no package name provided}
 
-local_binary=$(mktemp --tmpdir -- \
-	"build-upload.$(basename $1).XXXXXXXXX")
+local_binary=$(mktemp --tmpdir -- "build-upload.$(basename $1).XXXXXXXXX")
 trap 'rm -f "$local_binary"' EXIT
 
 repo=$(basename $(git rev-parse --show-toplevel))
@@ -14,6 +13,7 @@ remote_binary="$repo/$(basename "$1" .go).$USER"
 echo "[1/3] Building ${remote_binary}..."
 CGO_ENABLED=1 CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ \
 	GOOS=linux GOARCH=arm go build -o "$local_binary" "$1"
+shift
 
 echo "[2/3] Copying $remote_binary..."
 gzip -c "$local_binary" | sudo -u pi -- ssh pi "
@@ -21,4 +21,5 @@ gzip -c "$local_binary" | sudo -u pi -- ssh pi "
 	chmod +x $remote_binary
 	echo '[3/3] Starting ${remote_binary}...'
 	$remote_binary $@
+	exit # somehow necessary to see an error message (e.g. killed by SEGV)
 "
