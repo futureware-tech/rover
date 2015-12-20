@@ -1,13 +1,12 @@
-package main
+package lidar
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
 	"github.com/kidoman/embd"
-	_ "github.com/kidoman/embd/host/all"
+	_ "github.com/kidoman/embd/host/all" // for multi-host support
 )
 
 // Lidar is structure to access basic functions of LidarLite
@@ -150,9 +149,6 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 		return -1, errSt
 	}
 
-	log.Println("Write is done")
-	ls.GetStatus()
-
 	// The total acquisition time for the reference and signal acquisition is
 	// typically between 5 and 20 ms depending on the desired number of integrated
 	// pulses and the length of the correlation record. The acquisition time
@@ -261,31 +257,4 @@ func (ls *Lidar) DistanceContinuous() (int, error) {
 	}
 
 	return int(val), nil
-}
-
-func main() {
-	log.SetFlags(log.Lshortfile)
-	lidar := NewLidar(1, 0x62) // 0x62 the default LidarLite address
-	defer lidar.CloseLidar()
-	for {
-		if val, err := lidar.Distance(false); err == nil {
-			fmt.Println(val)
-			time.Sleep(1 * time.Second)
-
-		}
-		//if val, err := lidar.Velocity(); err == nil {
-		//	fmt.Println(val)
-		//	time.Sleep(1 * time.Second)
-		//}
-	}
-
-	/*if err := lidar.BeginContinuous(true, 0x08, 0xff); err == nil {
-		for {
-			val, e := lidar.DistanceContinuous()
-
-			if e == nil {
-				fmt.Println(val)
-			}
-		}
-	}*/
 }
