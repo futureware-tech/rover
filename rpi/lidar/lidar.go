@@ -18,8 +18,8 @@ type Lidar struct {
 	address byte
 }
 
-// Counter - maximum number of attempts to do operation
-const Counter = 50
+// MaxAttemptNumber - maximum number of attempts to do operation
+const MaxAttemptNumber = 50
 
 const (
 	// NotReady - Ready status. 0 - ready for a new command, 1 - busy
@@ -66,15 +66,14 @@ func NewLidar(i2cbus, addr byte) *Lidar {
 		log.Panic("Write ", e)
 	}
 	log.Println("Initialization is done")
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 	return &lSensor
 }
 
 // Read reads from the register and the same time check status of controller.
-// If Status is bad, it tries again, while i<counter
+// If Status is bad, it tries again
 func (ls *Lidar) Read(register byte) (byte, error) {
-	i := 0
-	for i < Counter {
+	for i := 0; i < MaxAttemptNumber; i++ {
 		st, errSt := ls.GetStatus()
 		switch {
 		case errSt != nil:
@@ -83,6 +82,10 @@ func (ls *Lidar) Read(register byte) (byte, error) {
 			log.Println("Not ready to read")
 		case st&Health == 0:
 			log.Println("Bad Health of controller")
+			val, rErr := ls.bus.ReadByteFromReg(ls.address, register)
+			if rErr == nil {
+				return val, nil
+			}
 		case st&ErrorDetection == 1:
 			log.Println("Error detected")
 		case st&SignalOverflow == 0:
@@ -93,11 +96,31 @@ func (ls *Lidar) Read(register byte) (byte, error) {
 				return val, nil
 			}
 		}
-		i++
 		//if ask Status often, Health status is bad
 		time.Sleep(1 * time.Second)
 	}
 	return 0, errors.New("Read limit occurs")
+}
+
+// WriteByteToRegister - write value(byte) to register(reg)
+func (ls *Lidar) WriteByteToRegister(register, value byte) error {
+
+	for i := 0; i < MaxAttemptNumber; i++ {
+		st, errSt := ls.GetStatus()
+		switch {
+		case errSt != nil:
+			log.Println(errSt)
+		case st&NotReady == 1:
+			log.Println("Not ready to write")
+		case st&Health == 0:
+			log.Println("Bad Health of controller")
+			return ls.bus.WriteByteToReg(ls.address, register, value)
+		default:
+			return ls.bus.WriteByteToReg(ls.address, register, value)
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return errors.New("Write limit occurs")
 }
 
 //CloseLidar closes releases the resources associated with the bus
@@ -115,14 +138,12 @@ func (ls *Lidar) CloseLidar() {
 func (ls *Lidar) GetStatus() (byte, error) {
 
 	val, err := ls.bus.ReadByteFromReg(ls.address, 0x01)
-	if err == nil {
-		log.Printf("Status: %.8b\n", val)
-	} else {
+	if err != nil {
 		log.Println("GetStatus", err)
 		return 0, err
 	}
+	log.Printf("Status: %.8b\n", val)
 	return val, nil
-
 }
 
 // Distance reads the distance from LidarLite
@@ -133,20 +154,14 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 
 	var wErr error // Write error
 
-	if _, errSt := ls.GetStatus(); errSt == nil {
-		if stablizePreampFlag {
-			wErr = ls.bus.WriteByteToReg(ls.address, 0x00, 0x04)
-		} else {
-			wErr = ls.bus.WriteByteToReg(ls.address, 0x00, 0x03)
-		}
-
-		if wErr != nil {
-			log.Println("Write ", wErr)
-			return -1, wErr
-		}
+	if stablizePreampFlag {
+		wErr = ls.WriteByteToRegister(0x00, 0x04)
 	} else {
-		log.Println(errSt)
-		return -1, errSt
+		wErr = ls.WriteByteToRegister(0x00, 0x03)
+	}
+	if wErr != nil {
+		log.Println("Write ", wErr)
+		return -1, wErr
 	}
 
 	// The total acquisition time for the reference and signal acquisition is
