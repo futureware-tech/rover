@@ -84,7 +84,7 @@ func (ls *Lidar) Read(register byte) (byte, error) {
 			if rErr == nil {
 				return val, nil
 			}
-		case st&ErrorDetection > 0:
+		case st&ErrorDetection != 0:
 			log.Println("Error detected")
 		case st&SignalOverflow == 0:
 			log.Println("Automatic limiting doesn't occurs ")
@@ -113,7 +113,7 @@ func (ls *Lidar) WriteByteToRegister(register, value byte) error {
 		switch {
 		case errSt != nil:
 			log.Println(errSt)
-		case st&NotReady > 0:
+		case st&NotReady != 0:
 			log.Println("Not ready to start new command")
 		default:
 			return ls.bus.WriteByteToReg(ls.address, register, value)
@@ -279,7 +279,7 @@ func (ls *Lidar) DistanceContinuous() (int, error) {
 			return -1, rErr
 		}
 		return int(val), nil
-	case status&ErrorDetection > 0:
+	case status&ErrorDetection != 0:
 		return -1, errors.New("Error in counting detected")
 	case status&SignalOverflow == 0:
 		return -1, errors.New("Automatic limiting doesn't occurs")
