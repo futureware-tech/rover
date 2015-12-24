@@ -190,6 +190,7 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 // Velocity is measured by observing the change in distance over a fixed time
 // of period
 // TODO 0x04 Check Mode Control
+// TODO Check unit
 func (ls *Lidar) Velocity() (int, error) {
 	// Write 0xa0 to 0x04 to switch on velocity mode
 	// Before changing mode we need to check status
