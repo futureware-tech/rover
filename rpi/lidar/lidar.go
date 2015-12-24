@@ -123,8 +123,8 @@ func (ls *Lidar) WriteByteToRegister(register, value byte) error {
 	return errors.New("Write limit occurs")
 }
 
-//CloseLidar closes releases the resources associated with the bus
-func (ls *Lidar) CloseLidar() {
+//Close closes releases the resources associated with the bus
+func (ls *Lidar) Close() {
 	// Reset FPGA. All registers return to default values
 	if e := ls.bus.WriteByteToReg(ls.address, 0x00, 0x00); e != nil {
 		log.Println("Write ", e)

@@ -11,7 +11,7 @@ import (
 func main() {
 	log.SetFlags(log.Lshortfile)
 	lidar := lidar.NewLidar(1, 0x62) // 0x62 the default LidarLite address
-	defer lidar.CloseLidar()         // todo: CloseLidar rename to Close
+	defer lidar.Close()
 
 	/*for {
 		if val, err := lidar.Distance(false); err == nil {
