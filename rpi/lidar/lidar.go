@@ -84,7 +84,7 @@ func (ls *Lidar) Read(register byte) (byte, error) {
 			if rErr == nil {
 				return val, nil
 			}
-		case st&ErrorDetection == 1:
+		case st&ErrorDetection != 0:
 			log.Println("Error detected")
 		case st&SignalOverflow == 0:
 			log.Println("Automatic limiting doesn't occurs ")
@@ -101,6 +101,11 @@ func (ls *Lidar) Read(register byte) (byte, error) {
 }
 
 // WriteByteToRegister - write value(byte) to register(reg)
+// Read register 0x01(this is handled in the GetStatus() command)
+//  - if the first bit is "1"(it checks in NotReady) then sensor is busy, loop
+//    until the first bit is 0 or i = MaxAttemptNumber
+//  - if the first bit is "0"(it checks in NotReady) then the sensor is ready
+//    for a new command
 func (ls *Lidar) WriteByteToRegister(register, value byte) error {
 
 	for i := 0; i < MaxAttemptNumber; i++ {
@@ -108,11 +113,8 @@ func (ls *Lidar) WriteByteToRegister(register, value byte) error {
 		switch {
 		case errSt != nil:
 			log.Println(errSt)
-		case st&NotReady == 1:
+		case st&NotReady != 0:
 			log.Println("Not ready to start new command")
-		case st&Health == 0:
-			log.Println("Bad Health of controller")
-			return ls.bus.WriteByteToReg(ls.address, register, value)
 		default:
 			return ls.bus.WriteByteToReg(ls.address, register, value)
 		}
@@ -121,8 +123,8 @@ func (ls *Lidar) WriteByteToRegister(register, value byte) error {
 	return errors.New("Write limit occurs")
 }
 
-//CloseLidar closes releases the resources associated with the bus
-func (ls *Lidar) CloseLidar() {
+//Close closes releases the resources associated with the bus
+func (ls *Lidar) Close() {
 	// Reset FPGA. All registers return to default values
 	if e := ls.bus.WriteByteToReg(ls.address, 0x00, 0x00); e != nil {
 		log.Println("Write ", e)
@@ -130,6 +132,7 @@ func (ls *Lidar) CloseLidar() {
 	if err := ls.bus.Close(); err != nil {
 		log.Println(err)
 	}
+	log.Println("Closing sensor is done")
 }
 
 // GetStatus gets Mode/Status of sensor
@@ -185,8 +188,9 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 }
 
 // Velocity is measured by observing the change in distance over a fixed time
-// of perion
+// of period
 // TODO 0x04 Check Mode Control
+// TODO Check unit
 func (ls *Lidar) Velocity() (int, error) {
 	// Write 0xa0 to 0x04 to switch on velocity mode
 	// Before changing mode we need to check status
@@ -201,7 +205,7 @@ func (ls *Lidar) Velocity() (int, error) {
 		log.Println("Write ", wErr)
 		return -1, wErr
 	}
-	log.Println("Distance reading....")
+	log.Println("Velocity  reading....")
 
 	//Read 1 byte from register 0x09 to get velocity measurement
 	val, e := ls.Read(0x09)
@@ -215,10 +219,11 @@ func (ls *Lidar) Velocity() (int, error) {
 
 // BeginContinuous allows to tell the sensor to take a certain number (or
 // infinite) readings allowing you to read from it at a continuous rate.
-// modePinLow - tells the mode pin to go low when a new reading is available.
-// interval - set the time between measurements, default is 0x04
-// numberOfReadings - set the number of readings to take before stopping
-// TODO search more about interval
+// - modePinLow - tells the mode pin to go low when a new reading is available.
+// - interval - set the time between measurements, default is 0x04.
+//   0xc8 corresponds to 10Hz while 0x13 corresponds to 100Hz. Maximum
+//   value is 0x02 for proper operations
+// - numberOfReadings - set the number of readings to take before stopping
 func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byte) error {
 
 	// Register 0x45 sets the time between measurements. Min val os 0x02
@@ -253,6 +258,7 @@ func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byt
 		log.Println(wErr)
 		return wErr
 	}
+	time.Sleep(1 * time.Second)
 	return nil
 }
 
@@ -260,11 +266,29 @@ func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byt
 // TODO Status check
 func (ls *Lidar) DistanceContinuous() (int, error) {
 
-	val, rErr := ls.bus.ReadWordFromReg(ls.address, 0x8f)
-	if rErr != nil {
-		log.Println("Read", rErr)
-		return -1, rErr
+	status, err := ls.GetStatus()
+	switch {
+	case err != nil:
+		log.Println(err)
+		return -1, err
+	case status&Health == 0:
+		val, rErr := ls.bus.ReadWordFromReg(ls.address, 0x8f)
+		log.Println("Bad health of sensor")
+		if rErr != nil {
+			log.Println("Read", rErr)
+			return -1, rErr
+		}
+		return int(val), nil
+	case status&ErrorDetection != 0:
+		return -1, errors.New("Error in counting detected")
+	case status&SignalOverflow == 0:
+		return -1, errors.New("Automatic limiting doesn't occurs")
+	default:
+		val, rErr := ls.bus.ReadWordFromReg(ls.address, 0x8f)
+		if rErr != nil {
+			log.Println("Read", rErr)
+			return -1, rErr
+		}
+		return int(val), nil
 	}
-
-	return int(val), nil
 }
