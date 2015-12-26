@@ -11,7 +11,7 @@ repo=$(basename $(git rev-parse --show-toplevel))
 remote_binary="$repo/$(basename "$1" .go).$USER"
 
 echo "[1/3] Building ${remote_binary}..."
-# TODO: use arm-linux-gnueabihf-gcc (not the 'hf'), take CGO_CFLAGS flags from
+# TODO: use arm-linux-gnueabihf-gcc (note the 'hf'), take CGO_CFLAGS flags from
 # $ gcc -mcpu=native -march=native -Q --help=target
 # Currently it's '-march=armv6zk -mcpu=arm1176jz-s -mfloat-abi=hard -mfpu=vfp'
 # but dies randomly with SIGSEGV or SIGILL.
