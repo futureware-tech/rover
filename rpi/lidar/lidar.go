@@ -269,8 +269,19 @@ func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byt
 		log.Println(wErr)
 		return wErr
 	}
-	time.Sleep(1 * time.Second) // TODO Add explanation
+
+	log.Println("Continuous mode has started...")
+	ls.continuousMode = true
+	time.Sleep(1 * time.Second) // Time is to do acquisition before reading
 	return nil
+}
+
+// StopContinuous stops continuous mode and sensor is ready to get new command,
+// for ex. distance of velocity mode. This method returns to default values.
+func (ls *Lidar) StopContinuous() {
+	ls.Reset()
+	ls.continuousMode = false
+	log.Println("Continuous mode has stopped")
 }
 
 // DistanceContinuous reads in continuous mode
