@@ -17,9 +17,9 @@ shift
 
 echo "[2/3] Copying $remote_binary..."
 gzip -c "$local_binary" | sudo -u pi -- ssh pi "
-	gzip -d >$remote_binary
-	chmod +x $remote_binary
-	echo '[3/3] Starting ${remote_binary}...'
+	gzip -d >$remote_binary &&
+	chmod +x $remote_binary &&
+	echo '[3/3] Starting ${remote_binary}...' &&
 	$remote_binary $@
 	exit # somehow necessary to see an error message (e.g. killed by SEGV)
 "
