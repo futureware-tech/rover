@@ -1,4 +1,4 @@
-#include <bcm_host.h>
+#include <host_applications/linux/libs/bcm_host/include/bcm_host.h>
 #include <stdlib.h>
 #include <errno.h>
 

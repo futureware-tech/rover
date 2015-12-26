@@ -1,13 +1,19 @@
 package vchi
 
 /*
-#cgo amd64 CFLAGS: -I ${SRCDIR}/../amd64
-
-#cgo arm CFLAGS: -I ${SRCDIR}/../arm/opt/vc/include
-#cgo arm CFLAGS: -I ${SRCDIR}/../arm/opt/vc/include/interface/vcos/pthreads
-#cgo arm CFLAGS: -I ${SRCDIR}/../arm/opt/vc/include/interface/vmcs_host/linux
-#cgo arm LDFLAGS: -L ${SRCDIR}/../arm/opt/vc/lib
-#cgo arm LDFLAGS: -lbcm_host -lvcos -lvchiq_arm
+#cgo CFLAGS: -I ${SRCDIR}/userland
+#cgo CFLAGS: -I ${SRCDIR}/userland/interface/vcos/pthreads
+#cgo CFLAGS: -I ${SRCDIR}/userland/interface/vmcs_host/linux
+// A hack. To add bcm_host to DT_NEEDED tags in the ELF output, we need to put
+// -lbcm_host on the ld commandline. ld will then unconditionally search for it.
+// However, the library is not present on a desktop system that is used for
+// cross-compiling. Thus we use runtime linking and create a fake .so file:
+// $ arm-linux-gnueabi-gcc -shared -x c /dev/null -o libbcm_host.so
+#cgo LDFLAGS: -Wl,--unresolved-symbols=ignore-in-object-files
+#cgo arm LDFLAGS: -Wl,--no-as-needed -L${SRCDIR} -lbcm_host
+// Alternatively, if in future we'll be building userland and getting real
+// libraries from it, '#cgo amd64 CFLAGS -I <directory_with_fake_h_file>'
+// will help to avoid issues with 'go get'.
 
 #include "vcgencmd.h"
 #include <stdlib.h>
