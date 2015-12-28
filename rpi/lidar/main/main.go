@@ -13,7 +13,7 @@ import (
 func continuous(lidar *lidar.Lidar, maxNumberOfResults int) {
 	for i := 0; i < maxNumberOfResults; i++ {
 		time.Sleep(1 * time.Second)
-		val, e := lidar.DistanceContinuous()
+		val, e := lidar.Distance(false)
 		if e == nil {
 			fmt.Println(val)
 		} else {
