@@ -10,7 +10,7 @@
 * https://wiki.debian.org/RaspberryPi (from here we learn that Pi is "armel")
 * https://wiki.debian.org/CrossToolchains
 
-# Raspberry PI (A+ V1.1) preperations
+# Raspberry PI (A+ V1.1) preparations
 
 ## OS
 
