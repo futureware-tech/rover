@@ -170,7 +170,6 @@ func (ls *Lidar) GetStatus() (byte, error) {
 // ister 0x8f. 0x8f = 10001111 and 0x0f = 00001111, meaning that 0x8f is 0x0f
 // with the high byte set to "1", ergo it autoincrements.
 func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
-	// TODO Test
 	if ls.continuousMode {
 		log.Println("stablizePreampFlag doesn't work. It is continuous mode")
 		return ls.distanceContinuous()
