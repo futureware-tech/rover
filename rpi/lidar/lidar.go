@@ -87,7 +87,7 @@ func (ls *Lidar) Reset() {
 }
 
 // Read reads from the register and the same time check status of controller.
-// If Status is bad or error was detectec, it tries again
+// If Status is bad or error was detected, it tries again
 func (ls *Lidar) Read(register byte) (byte, error) {
 	for i := 0; i < MaxAttemptNumber; i++ {
 		st, errSt := ls.GetStatus()
@@ -158,7 +158,7 @@ func (ls *Lidar) GetStatus() (byte, error) {
 }
 
 // Distance reads the distance from LidarLite
-// stablizePreampFlag - true - take aquisition with DC stabilisation/correction.
+// stablizePreampFlag - true - take aquisition with DC stabilisation/correction.//TODO read more
 // false - it will read faster, but you will need to stabilize DC every once in
 // awhile(ex. 1 out of every 100 readings is typically good)
 // Autoincrement: A note about 0x8f vs 0x0f
@@ -188,7 +188,7 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 		// a roughly 100Hz maximum measurement rate.
 		time.Sleep(250 * time.Millisecond)
 	}
-	return ls.distanceContinuous()
+	return ls.readDistance()
 }
 
 // Velocity is measured by observing the change in distance over a fixed time
@@ -225,7 +225,7 @@ func (ls *Lidar) Velocity() (int, error) {
 // infinite) readings allowing you to read from it at a continuous rate.
 // - modePinLow - tells the mode pin to go low when a new reading is available. TODO:Test it.
 // - interval - set the time between measurements, default is 0x04. TODO Add time.Duration
-//   0xc8 corresponds to 10Hz while 0x13 corresponds to 100Hz. Maximum
+//   0xc8 corresponds to 10Hz while 0x13 corresponds to 100Hz. Minimum
 //   value is 0x02 for proper operations
 // - numberOfReadings - set the number of readings to take before stopping
 //   0xfe = 254 readings, 0x01 = 1 reading and 0xff = continuous readings
@@ -234,7 +234,7 @@ func (ls *Lidar) Velocity() (int, error) {
 //   documentation-www.lidarlite.com/docs/v2/registers/. But practically it
 //   doesn't work, it continues to count
 func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byte) error {
-	// Register 0x45 sets the time between measurements. Min val os 0x02
+	// Register 0x45 sets the time between measurements. Min value is 0x02
 	// for proper operations.
 	if wErr := ls.bus.WriteByteToReg(ls.address, 0x45, interval); wErr != nil {
 		log.Println(wErr)
@@ -274,9 +274,8 @@ func (ls *Lidar) StopContinuous() {
 	log.Println("Continuous mode has stopped")
 }
 
-// TODO rename function
-// distanceContinuous reads in continuous mode
-func (ls *Lidar) distanceContinuous() (int, error) {
+// readDistance reads distance in any mode
+func (ls *Lidar) readDistance() (int, error) {
 
 	status, err := ls.GetStatus()
 	switch {
