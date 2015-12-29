@@ -5,8 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/kidoman/embd"
-	_ "github.com/kidoman/embd/host/all" // for multi-host support
+	"github.com/dasfoo/rover/rpi/i2c"
 )
 
 // Lidar is structure to access basic functions of LidarLite
@@ -14,7 +13,7 @@ import (
 // Model LL-905-PIN-02
 // Documentation on http://lidarlite.com/docs/v2/specs_and_hardware
 type Lidar struct {
-	bus     embd.I2CBus
+	bus     *i2c.Bus
 	address byte
 }
 
@@ -61,7 +60,8 @@ const (
 // 10 mA. Initiation of a user command, throw external trigger or I2C command,
 // awakes a processor allowing subsequent opetation.
 func NewLidar(i2cbus, addr byte) *Lidar {
-	lSensor := Lidar{bus: embd.NewI2CBus(i2cbus), address: addr}
+	bus, _ := i2c.NewBus(i2cbus)
+	lSensor := Lidar{bus: bus, address: addr}
 	if e := lSensor.bus.WriteByteToReg(lSensor.address, 0x00, 0x00); e != nil {
 		log.Panic("Write ", e)
 	}
