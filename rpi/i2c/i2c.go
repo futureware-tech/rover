@@ -61,7 +61,8 @@ func (b *Bus) ReadWordFromReg(addr, reg byte) (uint16, error) {
 		return 0, err
 	}
 	value, err := C.i2c_smbus_read_word_data(C.int(b.file.Fd()), C.__u8(reg))
-	return uint16(value), err
+	le_value := uint16(value) // little endian yet
+	return ((le_value >> 8) | (le_value << 8)), err
 }
 
 // WriteByteToReg writes 1 byte to a register of a slave device
@@ -73,18 +74,6 @@ func (b *Bus) WriteByteToReg(addr, reg, value byte) error {
 	}
 	_, err := C.i2c_smbus_write_byte_data(C.int(b.file.Fd()), C.__u8(reg),
 		C.__u8(value))
-	return err
-}
-
-// WriteWordToReg writes 2 bytes to a register of a slave device
-func (b *Bus) WriteWordToReg(addr, reg byte, value uint16) error {
-	b.opLock.Lock()
-	defer b.opLock.Unlock()
-	if err := b.setRemoteAddress(addr); err != nil {
-		return err
-	}
-	_, err := C.i2c_smbus_write_word_data(C.int(b.file.Fd()), C.__u8(reg),
-		C.__u16(value))
 	return err
 }
 
