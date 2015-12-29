@@ -170,30 +170,25 @@ func (ls *Lidar) GetStatus() (byte, error) {
 // ister 0x8f. 0x8f = 10001111 and 0x0f = 00001111, meaning that 0x8f is 0x0f
 // with the high byte set to "1", ergo it autoincrements.
 func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
-	if ls.continuousMode { //TODO if not distance continuous, 1 return
-		log.Println("stablizePreampFlag doesn't work. It is continuous mode")
-		return ls.distanceContinuous()
+	if !ls.continuousMode {
+		var wErr error // Write error
+		if stablizePreampFlag {
+			wErr = ls.WriteByteToRegister(0x00, 0x04)
+		} else {
+			wErr = ls.WriteByteToRegister(0x00, 0x03)
+		}
+		if wErr != nil {
+			log.Println("Write ", wErr)
+			return -1, wErr
+		}
+
+		// The total acquisition time for the reference and signal acquisition is
+		// typically between 5 and 20 ms depending on the desired number of integrated
+		// pulses and the length of the correlation record. The acquisition time
+		// plus the required 1 msec to download measurement parameters establish a
+		// a roughly 100Hz maximum measurement rate.
+		time.Sleep(250 * time.Millisecond)
 	}
-
-	var wErr error // Write error
-
-	if stablizePreampFlag {
-		wErr = ls.WriteByteToRegister(0x00, 0x04)
-	} else {
-		wErr = ls.WriteByteToRegister(0x00, 0x03)
-	}
-	if wErr != nil {
-		log.Println("Write ", wErr)
-		return -1, wErr
-	}
-
-	// The total acquisition time for the reference and signal acquisition is
-	// typically between 5 and 20 ms depending on the desired number of integrated
-	// pulses and the length of the correlation record. The acquisition time
-	// plus the required 1 msec to download measurement parameters establish a
-	// a roughly 100Hz maximum measurement rate.
-	time.Sleep(250 * time.Millisecond)
-
 	return ls.distanceContinuous()
 }
 
