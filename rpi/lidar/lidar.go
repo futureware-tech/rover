@@ -5,8 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/kidoman/embd"
-	_ "github.com/kidoman/embd/host/all" // for multi-host support
+	"github.com/dasfoo/rover/rpi/i2c"
 )
 
 // Lidar is structure to access basic functions of LidarLite
@@ -14,7 +13,7 @@ import (
 // Model LL-905-PIN-02
 // Documentation on http://lidarlite.com/docs/v2/specs_and_hardware
 type Lidar struct {
-	bus            embd.I2CBus
+	bus            *i2c.Bus
 	address        byte
 	continuousMode bool
 }
@@ -56,9 +55,9 @@ const (
 // NewLidar sets the configuration for the sensor and return all registers in
 // default values before using
 func NewLidar(i2cbus, addr byte) *Lidar {
-
+	bus, _ := i2c.NewBus(i2cbus) // TODO: check error
 	lSensor := Lidar{
-		bus:            embd.NewI2CBus(i2cbus),
+		bus:            bus,
 		address:        addr,
 		continuousMode: false,
 	}

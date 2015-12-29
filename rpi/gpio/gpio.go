@@ -26,6 +26,33 @@ uint16_t DHT11(unsigned pin) {
 import "C"
 import "time"
 
+/*
+RPi A+ V1.1 GPIO Layout
+
+             3V3 . . 5V
+(I2C SDA) GPIO 2 . . 5V
+(I2C SCL) GPIO 3 . . GND
+          GPIO 4 . . GPIO14 (UART_TXD)
+             GND . . GPIO15 (UART_RXD)
+          GPIO17 . . GPIO18 (PWM0, PCM_CLK)
+          GPIO27 . . GND
+          GPIO22 . . GPIO23
+             3V3 . . GPIO24
+   (MOSI) GPIO10 . . GND
+   (MISO) GPIO 9 . . GPIO25
+   (SCLK) GPIO11 . . GPIO 8 (CE0_N)
+             GND . . GPIO 7 (CE1_N)
+I2C ID EEPROM SD . . I2C ID EEPROM SC
+          GPIO 5 . . GND
+          GPIO 6 . . GPIO12 (PWM1)
+   (PWM1) GPIO13 . . GND
+   (PWM0) GPIO19 . . GPIO16
+          GPIO26 . . GPIO20
+             GND . . GPIO21
+
+             ... USB ...
+*/
+
 func init() {
 	C.gpioInitialise()
 }
