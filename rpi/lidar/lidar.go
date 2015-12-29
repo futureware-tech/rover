@@ -227,7 +227,12 @@ func (ls *Lidar) Velocity() (int, error) {
 // - interval - set the time between measurements, default is 0x04. TODO Add time.Duration
 //   0xc8 corresponds to 10Hz while 0x13 corresponds to 100Hz. Maximum
 //   value is 0x02 for proper operations
-// - numberOfReadings - set the number of readings to take before stopping TODO mere ditails
+// - numberOfReadings - set the number of readings to take before stopping
+//   0xfe = 254 readings, 0x01 = 1 reading and 0xff = continuous readings
+//   A value of less than 0xff will terminate continuous measurement after that
+//   amount of measurements(ex. 0xfe will take 254 measurements and stop)(from
+//   documentation-www.lidarlite.com/docs/v2/registers/. But practically it
+//   doesn't work, it continues to count
 func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byte) error {
 	// Register 0x45 sets the time between measurements. Min val os 0x02
 	// for proper operations.
@@ -244,8 +249,6 @@ func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byt
 		log.Print(wErr)
 		return wErr
 	}
-	// Set the number of readings, 0xfe = 254 readings, 0x01 = 1 reading and
-	// 0xff = continuous readings
 	if wErr := ls.bus.WriteByteToReg(ls.address, 0x11, numberOfReadings); wErr != nil {
 		log.Println(wErr)
 		return wErr
