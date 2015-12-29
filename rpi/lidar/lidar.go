@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/dasfoo/rover/rpi/i2c"
+	"github.com/dasfoo/i2c"
 )
 
 // Lidar is structure to access basic functions of LidarLite
