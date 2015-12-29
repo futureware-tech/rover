@@ -1,3 +1,0 @@
-[submodule "rpi/arm"]
-	path = rpi/vchi/userland
-	url = https://github.com/raspberrypi/userland
