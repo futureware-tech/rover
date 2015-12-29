@@ -14,8 +14,9 @@ import (
 // Model LL-905-PIN-02
 // Documentation on http://lidarlite.com/docs/v2/specs_and_hardware
 type Lidar struct {
-	bus     embd.I2CBus
-	address byte
+	bus            embd.I2CBus
+	address        byte
+	continuousMode bool
 }
 
 // MaxAttemptNumber - maximum number of attempts to do operation
@@ -52,26 +53,37 @@ const (
 	EyeSafe = 1 << iota
 )
 
-// NewLidar sets the configuration for the sensor
-// Write 0x00 to Register 0x00 reset FPGA. Re-loads FPGA from internal Flash
+// NewLidar sets the configuration for the sensor and return all registers in
+// default values before using
+func NewLidar(i2cbus, addr byte) *Lidar {
+
+	lSensor := Lidar{
+		bus:            embd.NewI2CBus(i2cbus),
+		address:        addr,
+		continuousMode: false,
+	}
+	lSensor.Reset()
+	log.Println("Initialization is done")
+	time.Sleep(1 * time.Second)
+	return &lSensor
+}
+
+// Reset writes 0x00 to Register 0x00 reset FPGA. Re-loads FPGA from internal Flash
 // memory: all registers return to default values
 // During initialization the microcontroller goes throw a self-test followed by
 // initialization of the internal control registers with default values. After
 // processor goes into sleep state reducing overall power consumption to under
 // 10 mA. Initiation of a user command, throw external trigger or I2C command,
 // awakes a processor allowing subsequent opetation.
-func NewLidar(i2cbus, addr byte) *Lidar {
-	lSensor := Lidar{bus: embd.NewI2CBus(i2cbus), address: addr}
-	if e := lSensor.bus.WriteByteToReg(lSensor.address, 0x00, 0x00); e != nil {
+func (ls *Lidar) Reset() {
+	if e := ls.bus.WriteByteToReg(ls.address, 0x00, 0x00); e != nil {
 		log.Panic("Write ", e)
 	}
-	log.Println("Initialization is done")
-	time.Sleep(1 * time.Second)
-	return &lSensor
+
 }
 
 // Read reads from the register and the same time check status of controller.
-// If Status is bad, it tries again
+// If Status is bad or error was detectec, it tries again
 func (ls *Lidar) Read(register byte) (byte, error) {
 	for i := 0; i < MaxAttemptNumber; i++ {
 		st, errSt := ls.GetStatus()
@@ -123,12 +135,10 @@ func (ls *Lidar) WriteByteToRegister(register, value byte) error {
 	return errors.New("Write limit occurs")
 }
 
-//Close closes releases the resources associated with the bus
+// Close closes releases the resources associated with the bus
 func (ls *Lidar) Close() {
 	// Reset FPGA. All registers return to default values
-	if e := ls.bus.WriteByteToReg(ls.address, 0x00, 0x00); e != nil {
-		log.Println("Write ", e)
-	}
+	ls.Reset()
 	if err := ls.bus.Close(); err != nil {
 		log.Println(err)
 	}
@@ -151,7 +161,19 @@ func (ls *Lidar) GetStatus() (byte, error) {
 // stablizePreampFlag - true - take aquisition with DC stabilisation/correction.
 // false - it will read faster, but you will need to stabilize DC every once in
 // awhile(ex. 1 out of every 100 readings is typically good)
+// Autoincrement: A note about 0x8f vs 0x0f
+// Set the highest bit of any register to "1" if you set the high byte of a
+// register and then take succesive readings from that register, then LIDAR-
+// Lite automatically increments the register one for each read. An example: If
+// we want to read the high and low bytes for the distance, we could take two
+// single readings from 0x0f and 0x10, or we could take 2 byte read from reg-
+// ister 0x8f. 0x8f = 10001111 and 0x0f = 00001111, meaning that 0x8f is 0x0f
+// with the high byte set to "1", ergo it autoincrements.
 func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
+	if ls.continuousMode {
+		log.Println("stablizePreampFlag doesn't work. It is continuous mode")
+		return ls.distanceContinuous()
+	}
 
 	var wErr error // Write error
 
@@ -172,25 +194,14 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 	// a roughly 100Hz maximum measurement rate.
 	time.Sleep(250 * time.Millisecond)
 
-	v1, rErr := ls.Read(0x10)
-	if rErr != nil {
-		log.Println("Read ", rErr)
-		return -1, rErr
-	}
-	v2, rErr := ls.Read(0x0f)
-	if rErr != nil {
-		log.Println("Read", rErr)
-		return -1, rErr
-	}
-
-	return ((int(v2) << 8) + int(v1)), nil
-
+	return ls.distanceContinuous()
 }
 
 // Velocity is measured by observing the change in distance over a fixed time
 // of period
+// It reads in 0.1 meters/sec. See Mode Control, Register 0x04 for information
+// on changing the scale factor to 1m/sec
 // TODO 0x04 Check Mode Control
-// TODO Check unit
 func (ls *Lidar) Velocity() (int, error) {
 	// Write 0xa0 to 0x04 to switch on velocity mode
 	// Before changing mode we need to check status
@@ -258,13 +269,23 @@ func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byt
 		log.Println(wErr)
 		return wErr
 	}
-	time.Sleep(1 * time.Second)
+
+	log.Println("Continuous mode has started...")
+	ls.continuousMode = true
+	time.Sleep(1 * time.Second) // Time is to do acquisition before reading
 	return nil
 }
 
-// DistanceContinuous reads in continuous mode
-// TODO Status check
-func (ls *Lidar) DistanceContinuous() (int, error) {
+// StopContinuous stops continuous mode and sensor is ready to get new command,
+// for ex. distance of velocity mode. This method returns to default values.
+func (ls *Lidar) StopContinuous() {
+	ls.Reset()
+	ls.continuousMode = false
+	log.Println("Continuous mode has stopped")
+}
+
+// distanceContinuous reads in continuous mode
+func (ls *Lidar) distanceContinuous() (int, error) {
 
 	status, err := ls.GetStatus()
 	switch {
