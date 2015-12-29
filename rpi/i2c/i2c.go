@@ -61,7 +61,7 @@ func (b *Bus) ReadWordFromReg(addr, reg byte) (uint16, error) {
 		return 0, err
 	}
 	value, err := C.i2c_smbus_read_word_data(C.int(b.file.Fd()), C.__u8(reg))
-	leValue := uint16(value) // little endian yet
+	leValue := uint16(value) // big endian yet
 	return ((leValue >> 8) | (leValue << 8)), err
 }
 
