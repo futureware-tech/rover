@@ -10,6 +10,7 @@ import (
 
 // TODO: ADD Mutex
 // TODO Check grammar
+
 // Lidar is structure to access basic functions of LidarLite
 // LidarLite_V2 blue label
 // Model LL-905-PIN-02
@@ -57,7 +58,10 @@ const (
 // NewLidar sets the configuration for the sensor and return all registers in
 // default values before using
 func NewLidar(i2cbus, addr byte) *Lidar {
-	bus, _ := i2c.NewBus(i2cbus) // TODO: check error
+	bus, err := i2c.NewBus(i2cbus) // TODO: check error
+	if err != nil {
+		log.Panic(err)
+	}
 	lSensor := Lidar{
 		bus:            bus,
 		address:        addr,
@@ -65,7 +69,6 @@ func NewLidar(i2cbus, addr byte) *Lidar {
 	}
 	lSensor.Reset()
 	log.Println("Initialization is done")
-	time.Sleep(1 * time.Second) //TODO move to reset + explanation
 	return &lSensor
 }
 
@@ -80,6 +83,7 @@ func (ls *Lidar) Reset() {
 	if e := ls.bus.WriteByteToReg(ls.address, 0x00, 0x00); e != nil {
 		log.Panic("Write ", e)
 	}
+	time.Sleep(1 * time.Second) // TODO: remove if it is possible
 }
 
 // Read reads from the register and the same time check status of controller.
