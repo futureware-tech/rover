@@ -181,7 +181,6 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 			log.Println("Write ", wErr)
 			return -1, wErr
 		}
-
 		// The total acquisition time for the reference and signal acquisition is
 		// typically between 5 and 20 ms depending on the desired number of integrated
 		// pulses and the length of the correlation record. The acquisition time
@@ -236,19 +235,14 @@ func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byt
 		log.Println(wErr)
 		return wErr
 	}
-
+	var byteToReg byte
+	byteToReg = 0x20
 	if modePinLow {
-		if wErr := ls.bus.WriteByteToReg(ls.address, 0x04, 0x21); wErr != nil {
-			log.Print(wErr) // TODO remove duplicate
-			return wErr
-		}
-
-	} else {
-		// Set register 0x04 to 0x20 to look at "NON-default" value of velocity
-		if wErr := ls.bus.WriteByteToReg(ls.address, 0x04, 0x20); wErr != nil {
-			log.Print(wErr)
-			return wErr
-		}
+		byteToReg = 0x21
+	}
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x04, byteToReg); wErr != nil {
+		log.Print(wErr)
+		return wErr
 	}
 	// Set the number of readings, 0xfe = 254 readings, 0x01 = 1 reading and
 	// 0xff = continuous readings

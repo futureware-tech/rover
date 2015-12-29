@@ -49,14 +49,14 @@ func main() {
 			}
 		}
 	case command == "continuous":
-		if err := lidar.BeginContinuous(true, 0xc8, 0xff); err == nil {
+		if err := lidar.BeginContinuous(false, 0xc8, 0xff); err == nil {
 			continuous(lidar, maxNumberOfResults)
 		} else {
 			log.Println(err)
 		}
-		// For testing purpose
-		/*case command == "test":
-		if err := lidar.BeginContinuous(true, 0xc8, 0xff); err == nil {
+	// For testing purpose
+	case command == "test":
+		if err := lidar.BeginContinuous(false, 0xc8, 0xff); err == nil {
 			continuous(lidar, maxNumberOfResults)
 			lidar.StopContinuous()
 			for i := 0; i < maxNumberOfResults; i++ {
@@ -67,6 +67,6 @@ func main() {
 			}
 		} else {
 			log.Println(err)
-		}*/
+		}
 	}
 }
