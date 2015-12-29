@@ -8,6 +8,8 @@ import (
 	"github.com/dasfoo/rover/rpi/i2c"
 )
 
+// TODO: ADD Mutex
+// TODO Check grammar
 // Lidar is structure to access basic functions of LidarLite
 // LidarLite_V2 blue label
 // Model LL-905-PIN-02
@@ -63,14 +65,14 @@ func NewLidar(i2cbus, addr byte) *Lidar {
 	}
 	lSensor.Reset()
 	log.Println("Initialization is done")
-	time.Sleep(1 * time.Second)
+	time.Sleep(1 * time.Second) //TODO move to reset + explanation
 	return &lSensor
 }
 
 // Reset writes 0x00 to Register 0x00 reset FPGA. Re-loads FPGA from internal Flash
 // memory: all registers return to default values
-// During initialization the microcontroller goes throw a self-test followed by
-// initialization of the internal control registers with default values. After
+// During initialization the microcontroller goes *throw* a self-test followed by
+// initialization of the internal control registers with default values. After that
 // processor goes into sleep state reducing overall power consumption to under
 // 10 mA. Initiation of a user command, throw external trigger or I2C command,
 // awakes a processor allowing subsequent opetation.
@@ -78,7 +80,6 @@ func (ls *Lidar) Reset() {
 	if e := ls.bus.WriteByteToReg(ls.address, 0x00, 0x00); e != nil {
 		log.Panic("Write ", e)
 	}
-
 }
 
 // Read reads from the register and the same time check status of controller.
@@ -113,12 +114,12 @@ func (ls *Lidar) Read(register byte) (byte, error) {
 
 // WriteByteToRegister - write value(byte) to register(reg)
 // Read register 0x01(this is handled in the GetStatus() command)
+// TODO remove words
 //  - if the first bit is "1"(it checks in NotReady) then sensor is busy, loop
 //    until the first bit is 0 or i = MaxAttemptNumber
 //  - if the first bit is "0"(it checks in NotReady) then the sensor is ready
 //    for a new command
 func (ls *Lidar) WriteByteToRegister(register, value byte) error {
-
 	for i := 0; i < MaxAttemptNumber; i++ {
 		st, errSt := ls.GetStatus()
 		switch {
@@ -146,7 +147,6 @@ func (ls *Lidar) Close() {
 
 // GetStatus gets Mode/Status of sensor
 func (ls *Lidar) GetStatus() (byte, error) {
-
 	val, err := ls.bus.ReadByteFromReg(ls.address, 0x01)
 	if err != nil {
 		log.Println("GetStatus", err)
@@ -169,7 +169,7 @@ func (ls *Lidar) GetStatus() (byte, error) {
 // ister 0x8f. 0x8f = 10001111 and 0x0f = 00001111, meaning that 0x8f is 0x0f
 // with the high byte set to "1", ergo it autoincrements.
 func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
-	if ls.continuousMode {
+	if ls.continuousMode { //TODO if not distance continuous, 1 return
 		log.Println("stablizePreampFlag doesn't work. It is continuous mode")
 		return ls.distanceContinuous()
 	}
@@ -204,7 +204,7 @@ func (ls *Lidar) Distance(stablizePreampFlag bool) (int, error) {
 func (ls *Lidar) Velocity() (int, error) {
 	// Write 0xa0 to 0x04 to switch on velocity mode
 	// Before changing mode we need to check status
-	log.Println("Starting velocity mode")
+	log.Println("Starting velocity mode") //
 	if wErr := ls.WriteByteToRegister(0x04, 0xa0); wErr != nil {
 		log.Println("Write ", wErr)
 		return -1, wErr
@@ -224,18 +224,16 @@ func (ls *Lidar) Velocity() (int, error) {
 		return -1, e
 	}
 	return int(val), nil
-
 }
 
-// BeginContinuous allows to tell the sensor to take a certain number (or
+// BeginContinuous allows to tell the sensor to take a certain number of (or
 // infinite) readings allowing you to read from it at a continuous rate.
-// - modePinLow - tells the mode pin to go low when a new reading is available.
-// - interval - set the time between measurements, default is 0x04.
+// - modePinLow - tells the mode pin to go low when a new reading is available. TODO:Test it.
+// - interval - set the time between measurements, default is 0x04. TODO Add time.Duration
 //   0xc8 corresponds to 10Hz while 0x13 corresponds to 100Hz. Maximum
 //   value is 0x02 for proper operations
-// - numberOfReadings - set the number of readings to take before stopping
+// - numberOfReadings - set the number of readings to take before stopping TODO mere ditails
 func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byte) error {
-
 	// Register 0x45 sets the time between measurements. Min val os 0x02
 	// for proper operations.
 	if wErr := ls.bus.WriteByteToReg(ls.address, 0x45, interval); wErr != nil {
@@ -245,7 +243,7 @@ func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byt
 
 	if modePinLow {
 		if wErr := ls.bus.WriteByteToReg(ls.address, 0x04, 0x21); wErr != nil {
-			log.Print(wErr)
+			log.Print(wErr) // TODO remove duplicate
 			return wErr
 		}
 
@@ -283,6 +281,7 @@ func (ls *Lidar) StopContinuous() {
 	log.Println("Continuous mode has stopped")
 }
 
+// TODO rename function
 // distanceContinuous reads in continuous mode
 func (ls *Lidar) distanceContinuous() (int, error) {
 

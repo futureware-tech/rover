@@ -24,8 +24,8 @@ func continuous(lidar *lidar.Lidar, maxNumberOfResults int) {
 }
 
 func main() {
-	log.SetFlags(log.Lshortfile)
-	lidar := lidar.NewLidar(1, 0x62) // 0x62 the default LidarLite address
+	log.SetFlags(log.Lshortfile)     // TODO Add time
+	lidar := lidar.NewLidar(1, 0x62) // 0x62 the default LidarLite address TODO move to const
 	defer lidar.Close()
 	command := os.Args[1]                               //TODO Error check
 	maxNumberOfResults, err := strconv.Atoi(os.Args[2]) //TODO Error check
