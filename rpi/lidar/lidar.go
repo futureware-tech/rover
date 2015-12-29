@@ -58,7 +58,7 @@ const (
 // NewLidar sets the configuration for the sensor and return all registers in
 // default values before using
 func NewLidar(i2cbus, addr byte) *Lidar {
-	bus, err := i2c.NewBus(i2cbus) // TODO: check error
+	bus, err := i2c.NewBus(i2cbus)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -116,13 +116,10 @@ func (ls *Lidar) Read(register byte) (byte, error) {
 	return 0, errors.New("Read limit occurs")
 }
 
-// WriteByteToRegister - write value(byte) to register(reg)
+// WriteByteToRegister - write value(byte) to register
 // Read register 0x01(this is handled in the GetStatus() command)
-// TODO remove words
-//  - if the first bit is "1"(it checks in NotReady) then sensor is busy, loop
-//    until the first bit is 0 or i = MaxAttemptNumber
-//  - if the first bit is "0"(it checks in NotReady) then the sensor is ready
-//    for a new command
+// if sensor is NotReady for new command, loop tries again until MaxAttemptNumber
+// occurs or sensor is ready
 func (ls *Lidar) WriteByteToRegister(register, value byte) error {
 	for i := 0; i < MaxAttemptNumber; i++ {
 		st, errSt := ls.GetStatus()
