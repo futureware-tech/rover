@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dasfoo/rover/rpi/lidar"
+	"github.com/dasfoo/lidar-lite-v2"
 )
 
 func continuous(lidar *lidar.Lidar, maxNumberOfResults int) {
