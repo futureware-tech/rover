@@ -4,7 +4,6 @@ sudo: required
 
 go:
     - 1.5
-    # - release (it's 1.4 for now, and cross-compiling doesn't work too well)
     - tip
 
 install:
