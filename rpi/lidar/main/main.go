@@ -49,7 +49,7 @@ func main() {
 			}
 		}
 	case command == "continuous":
-		if err := lidar.BeginContinuous(false, 0xc8, 0xff); err == nil {
+		if err := lidar.BeginContinuous(true, 130*time.Millisecond, 0x02); err == nil {
 			continuous(lidar, maxNumberOfResults)
 		} else {
 			log.Println(err)

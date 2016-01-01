@@ -224,19 +224,23 @@ func (ls *Lidar) Velocity() (int, error) {
 // BeginContinuous allows to tell the sensor to take a certain number of (or
 // infinite) readings allowing you to read from it at a continuous rate.
 // - modePinLow - tells the mode pin to go low when a new reading is available. TODO:Test it.
-// - interval - set the time between measurements, default is 0x04. TODO Add time.Duration
-//   0xc8 corresponds to 10Hz while 0x13 corresponds to 100Hz. Minimum
-//   value is 0x02 for proper operations
+// - interval - set the time between measurements, default is 0x04.
+//   0xc8 corresponds to 10Hz(100 msec) while 0x13 corresponds to 100Hz(10msec). Minimum
+//   value is 0x02(1msec) for proper operations
 // - numberOfReadings - set the number of readings to take before stopping
 //   0xfe = 254 readings, 0x01 = 1 reading and 0xff = continuous readings
 //   A value of less than 0xff will terminate continuous measurement after that
 //   amount of measurements(ex. 0xfe will take 254 measurements and stop)(from
-//   documentation-www.lidarlite.com/docs/v2/registers/. But practically it
+//   documentation- http://lidarlite.com/docs/v2/registers/. But practically it
 //   doesn't work, it continues to count
-func (ls *Lidar) BeginContinuous(modePinLow bool, interval, numberOfReadings byte) error {
+func (ls *Lidar) BeginContinuous(modePinLow bool, interval time.Duration, numberOfReadings byte) error {
 	// Register 0x45 sets the time between measurements. Min value is 0x02
 	// for proper operations.
-	if wErr := ls.bus.WriteByteToReg(ls.address, 0x45, interval); wErr != nil {
+	// interval in msec change in proper value. The function is y = x * 2000
+	// interval converts to value in nsec, than convert to msec and * 2000
+	// TODO check errors
+	intervalInbyte := byte(interval.Nanoseconds() * 2 / 1000000)
+	if wErr := ls.bus.WriteByteToReg(ls.address, 0x45, intervalInbyte); wErr != nil {
 		log.Println(wErr)
 		return wErr
 	}
