@@ -3,70 +3,19 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"strconv"
-	"time"
 
+	"github.com/dasfoo/i2c"
 	"github.com/dasfoo/lidar-lite-v2"
 )
 
-func continuous(lidar *lidar.Lidar, maxNumberOfResults int) {
-	for i := 0; i < maxNumberOfResults; i++ {
-		time.Sleep(1 * time.Second)
-		val, e := lidar.Distance(false)
-		if e == nil {
-			fmt.Println(val)
-		} else {
-			log.Println(e)
-		}
-	}
-
-}
-
 func main() {
-	log.SetFlags(log.Lshortfile)     // TODO Add time
-	lidar := lidar.NewLidar(1, 0x62) // 0x62 the default LidarLite address TODO move to const
-	defer lidar.Close()
-	command := os.Args[1]                               //TODO Error check
-	maxNumberOfResults, err := strconv.Atoi(os.Args[2]) //TODO Error check
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	switch {
-	case command == "distance":
-		for i := 0; i < maxNumberOfResults; i++ {
-			if val, err := lidar.Distance(false); err == nil {
-				fmt.Println(val)
-				time.Sleep(1 * time.Second)
-			}
-		}
-	case command == "velocity":
-		for i := 0; i < maxNumberOfResults; i++ {
-			if val, err := lidar.Velocity(); err == nil {
-				fmt.Println(val)
-				time.Sleep(1 * time.Second)
-			}
-		}
-	case command == "continuous":
-		if err := lidar.BeginContinuous(true, 130*time.Millisecond, 0x02); err == nil {
-			continuous(lidar, maxNumberOfResults)
-		} else {
-			log.Println(err)
-		}
-		// For testing purpose
-		/*case command == "test":
-		if err := lidar.BeginContinuous(false, 0xc8, 0x02); err == nil {
-			continuous(lidar, maxNumberOfResults)
-			lidar.StopContinuous()
-			for i := 0; i < maxNumberOfResults; i++ {
-				if val, e := lidar.Distance(false); e == nil {
-					fmt.Println(val)
-					time.Sleep(1 * time.Second)
-				}
-			}
-		} else {
-			log.Println(err)
-		}*/
+	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	bus, _ := i2c.NewBus(1)
+	s := lidar.NewLidar(bus, lidar.DefaultAddress)
+
+	fmt.Println(s.GetDistance())
+
+	if hw, sw, err := s.GetVersion(); err == nil {
+		fmt.Printf("LIDAR-Lite v2 \"Blue Label\" hw%dsw%d\n", hw, sw)
 	}
 }
