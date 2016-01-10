@@ -19,7 +19,7 @@
 
 ## `/boot/config.txt`
 
-* Drop GPU mem allocation: `gpu_mem=16`
+* ~~Drop GPU mem allocation to 16MB: `gpu_mem=16`~~ enabling camera requires at least 128MB GPU
 * Enable i2c: `dtparam=i2c_arm=on`
 * Enable audio: `dtparam=audio=on`
 * Enable camera: `start_x=1`
