@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
 
-set -e
-
-mypath="$(dirname $0)"
-
 # TODO: use arm-linux-gnueabihf-gcc (note the 'hf'), take CGO_CFLAGS flags from
 # $ gcc -mcpu=native -march=native -Q --help=target
 # Currently it's '-march=armv6zk -mcpu=arm1176jz-s -mfloat-abi=hard -mfpu=vfp'
 # but dies randomly with SIGSEGV or SIGILL.
 
 # 'go run' will be looking for go_${GOOS}_${GOARCH}_exec in $PATH
-PATH="$PATH:$mypath" CGO_ENABLED=1 CC=arm-linux-gnueabi-gcc \
+PATH="$PATH:$(dirname $0)" CGO_ENABLED=1 CC=arm-linux-gnueabi-gcc \
 	GOOS=linux GOARCH=arm go run "$@"
