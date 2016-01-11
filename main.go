@@ -30,15 +30,22 @@ func main() {
 
 	b := bpi.NewBrightPI(bus, bpi.DefaultAddress)
 	s := lidar.NewLidar(bus, lidar.DefaultAddress)
+	_ = s.Reset()
 
 	_ = b.Dim(bpi.WhiteAll, bpi.DefaultDim)
 	_ = b.Gain(bpi.DefaultGain)
 	go ledCircle(b, 16)
 
-	for i := 0; i < 32; i++ {
-		if d, e := s.GetDistance(); e == nil {
-			fmt.Println("Distance is", d, "cm")
-		}
+	// Simple GetDistance
+	fmt.Println(s.GetDistance())
+
+	// Continuous mode
+	_ = s.SetContinuousMode(50, 100*time.Millisecond)
+	_ = s.Acquire(false)
+	for i := 0; i < 50; i++ {
+		fmt.Println("Round", i)
+		fmt.Println(s.ReadDistance())
+		fmt.Println(s.ReadVelocity())
 		time.Sleep(100 * time.Millisecond)
 	}
 
