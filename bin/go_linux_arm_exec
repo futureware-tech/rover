@@ -11,5 +11,5 @@ gzip -c "$local_binary" | sudo -u pi -- ssh pi "
 	chmod +x $remote_binary &&
 	echo 'Starting ${remote_binary}...' &&
 	$remote_binary $@
-	exit # somehow necessary to see an error message (e.g. killed by SEGV)
+	exit \$? # somehow necessary to see an error message (e.g. killed by SEGV)
 "
