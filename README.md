@@ -48,3 +48,56 @@ Mount /tmp as tmpfs (RAM):
 There is a number of ways to run commands at startup, crontab seems most portable:
 
 `@reboot sh -c 'REMOTE_PORT=XXXXXX REMOTE_HOST=YYYYYY $HOME/rover/bin/reverse-tunnel >/dev/null 2>&1 &'`
+
+## groups
+
+`pi` must be a member of `dip` group to call for `pon`/`poff`:
+
+`sudo usermod -aG dip pi`
+
+## ppp
+
+Replace `$ISPNAME` with what's your ISP suggests as "endpoint", e.g.: data.umts.example.org
+
+```
+$ cat /etc/ppp/peers/$ISPNAME
+# serial path
+/dev/ttyAMA0
+# baud rate
+115200
+connect '/usr/sbin/chat -v -f /etc/chatscripts/gprs -T $ISPNAME'
+
+# do not require auth from remote side
+noauth
+# add default route
+defaultroute
+# even if there's already default route, replace it with PPP
+replacedefaultroute
+# ask the peer for up to 2 DNS servers
+usepeerdns
+# name the interface pppN, N=0
+unit 0
+# dial again when connection is lost
+persist
+# rechallenge the peer every 321 seconds
+chap-interval 321
+# random string to identify connection
+ipparam $ISPNAME
+# send echo every 20 seconds
+lcp-echo-interval 20
+# reconnect if not responded to 3 echoes in a row
+lcp-echo-failure 3
+# do not try to guess own IP address (only receive it from ISP)
+noipdefault
+# do not try to guess remote peer IP address (only receive it from ISP)
+noremoteip
+# detach from controlling terminal only once connection is established
+updetach
+
+# (optionally) disable compression
+#nopcomp
+#novjccomp
+#nobsdcomp
+#nodeflate
+#noaccomp
+``````
