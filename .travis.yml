@@ -4,22 +4,33 @@ go:
     - 1.5
     - tip
 
+cache:
+    directories:
+        - "~/.platformio"
+
 addons:
     apt:
         packages:
         - libi2c-dev
 
 install:
+    # Rapsberry Pi part
     - go get github.com/alecthomas/gometalinter
     - gometalinter --install --update
     - go get github.com/axw/gocov/gocov
     - go get golang.org/x/tools/cmd/cover
     - go get github.com/mattn/goveralls
+    # BotBoarduino part
+    - pip install --user --upgrade platformio
+    - platformio lib install 19 # Adafruit-DHT
 
 script:
+    # Raspberry Pi part
     - go get -v ./...
     - gometalinter --deadline 1m ./...
     - goveralls -v -service=travis-ci ./...
+    # BotBoarduino part
+    - platformio ci --board=diecimilaatmega328 bb
 
 branches:
     only:
