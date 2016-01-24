@@ -8,6 +8,7 @@ import (
 	"github.com/dasfoo/bright-pi"
 	"github.com/dasfoo/i2c"
 	"github.com/dasfoo/lidar-lite-v2"
+	"github.com/dasfoo/rover/bb"
 )
 
 func ledCircle(b *bpi.BrightPI, circles int) {
@@ -26,6 +27,14 @@ func main() {
 	if err != nil {
 		log.Println(err)
 		return
+	}
+
+	board := bb.NewBB(bus, bb.Address)
+	if p, e := board.GetBatteryPercentage(); e != nil {
+		board.Reset(bb.ResetPin)
+		time.Sleep(time.Second)
+	} else {
+		fmt.Println("Battery status (estimated):", p, "%")
 	}
 
 	b := bpi.NewBrightPI(bus, bpi.DefaultAddress)
