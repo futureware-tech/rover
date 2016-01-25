@@ -79,15 +79,18 @@ func (bb *BB) Tilt(angle byte) error {
 func (bb *BB) MotorLeft(speed int8) error {
 	return bb.bus.WriteByteToReg(bb.address, register(ModuleMotor),
 		byte(int(speed)+MaxMotorSpeed))
+	// TODO: check status
 }
 
 // MotorRight changes right motor speed, range -MaxMotorSpeed .. MaxMotorSpeed
 func (bb *BB) MotorRight(speed int8) error {
+	// TODO: check status
 	return bb.bus.WriteByteToReg(bb.address, register(ModuleMotor)+1,
 		byte(int(speed)+MaxMotorSpeed))
 }
 
 // GetBatteryPercentage returns estimated battery charge, in percent
 func (bb *BB) GetBatteryPercentage() (byte, error) {
+	// TODO: check status
 	return bb.bus.ReadByteFromReg(bb.address, register(ModuleBoard)+1)
 }
