@@ -3,13 +3,17 @@
 #define I2C_ADDRESS 0x42
 
 // Stop all movement
-#define COMMAND_HALT                0x00
+#define COMMAND_HALT 0x00
 // Invoke environment sensor
 #define COMMAND_MEASURE_ENVIRONMENT 0x01
 // Detach from all servos / motors (release, low power mode)
-#define COMMAND_SLEEP               0x02
+#define COMMAND_SLEEP 0x02
 // Re-attach servos / motors
-#define COMMAND_WAKE                0x03
+#define COMMAND_WAKE 0x03
+// Use encoder statuses to detect movement and block it with motors
+#define COMMAND_BRAKE 0x04
+// Release the brake mode
+#define COMMAND_RELEASE_BRAKE 0x05
 
 // Command register
 #define MODULE_COMMAND            0x00
@@ -29,3 +33,19 @@
 #define MODULE_SPEECH             0x0d
 #define MODULE_RESERVED0          0x0e
 #define MODULE_RESERVED1          0x0f
+
+// Additions for MOTOR register
+#define MOTOR_LEFT  0x00
+#define MOTOR_RIGHT 0x01
+#define MOTOR_ENCODER_LEFT_FRONT  0x02
+#define MOTOR_ENCODER_LEFT_BACK   0x03
+#define MOTOR_ENCODER_RIGHT_FRONT 0x04
+#define MOTOR_ENCODER_RIGHT_BACK  0x05
+
+// Additions for ENVIRONMENT_SENSOR register
+#define ENVIRONMENT_SENSOR_TEMPERATURE 0x00
+#define ENVIRONMENT_SENSOR_HUMIDITY 0x01
+
+// Additions for BOARD register
+#define BOARD_STATUS 0x00
+#define BOARD_BATTERY 0x01

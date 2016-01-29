@@ -123,11 +123,11 @@ const PROGMEM uint16_t melody_HappyBirthday[][2] = {
   {NOTE_F4, 4},
 };
 
-void play(const uint16_t melody[][2], byte size) {
+void play(byte pin, const uint16_t melody[][2], byte size) {
   for (int i = 0; i < size; i++) {
     uint16_t duration = 1000 / pgm_read_word(&melody[i][1]);
-    tone(5, pgm_read_word(&melody[i][0]), duration);
+    tone(pin, pgm_read_word(&melody[i][0]), duration);
     delay(duration * 1.3);
-    noTone(5);
+    noTone(pin);
   }
 }

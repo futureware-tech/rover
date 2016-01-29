@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <DHT.h>
 #include <Servo.h>
+#include <math.h>
 
 #include "bb.h"
 #include "music.h"
@@ -8,12 +9,42 @@
 Servo pan, tilt;
 Servo left, right;
 
-DHT environment_sensor(4, DHT11);
+// TODO: use map() and constrain(TILT)
+
+/*
+ * BotBoarduino PINs
+ * According to http://www.lynxmotion.com/images/html/build185.htm and some others.
+ * Servos: PWM vs PPM: http://forum.arduino.cc/index.php/topic,14146.0.html
+ */
+
+#define PIN_SERIAL_RX           0
+#define PIN_SERIAL_TX           1
+#define PIN_MOTOR_LEFT          2
+#define PIN_MOTOR_RIGHT         3 // PWM
+#define PIN_ENVIRONMENT_SENSOR  4
+#define PIN_SPEAKER             5 // speaker enabled by jumper, PWM/timer
+#define PIN_RESERVED0           6 // PWM/timer
+#define PIN_RESERVED1           7 // A LED enabled by jumper, A button
+#define PIN_RESERVED2           8 // B LED enabled by jumper, B button
+#define PIN_RESERVED3           9 // C LED enabled by jumper, C button, PWM
+#define PIN_RESERVED4          10 // PWM
+#define PIN_RESERVED5          11 // PWM
+#define PIN_TILT               12
+#define PIN_PAN                13 // "L" LED
+
+#define PIN_ANALOG_RESERVED0    0
+#define PIN_ANALOG_RESERVED1    1
+#define PIN_ANALOG_BATTERY      2
+#define PIN_ANALOG_LIGHT_SENSOR 3
+#define PIN_ANALOG_I2C_SDA      4 // i2c enabled by jumper
+#define PIN_ANALOG_I2C_SCL      5 // i2c enabled by jumper
+
+// TODO: read these from Arduino Nano (protocol = ?)
+unsigned long encoder_left_front = 0, encoder_left_back = 0,
+              encoder_right_front = 0, encoder_right_back = 0;
+
+DHT environment_sensor(PIN_ENVIRONMENT_SENSOR, DHT11);
 byte environment_temperature, environment_humidity;
-
-byte light_sensor = 3;
-
-byte battery_status = 2;
 
 byte i2cRegister = 0xff; // register to read from / write to
 
@@ -29,17 +60,58 @@ uint16_t status = 0;
 }
 #define READY(module) (status |= (1 << MODULE_ ## module))
 
-void setupMotor() {
-  left.attach(2, 1000, 2000);
-  right.attach(3, 1000, 2000);
-  READY(MOTOR);
+// Motor state can only be changed at STEP per DELAY max speed
+#define APPROACH_STEP 45
+#define APPROACH_DELAY 200
+
+// Max time for Servo to reach new position (worst case, 180 degree turn)
+#define MAX_SERVO_ROTATE_TIME 200
+
+void approach(Servo *servo, byte value) {
+  int16_t delta = ((int16_t)servo->read()) - value;
+  while (abs(delta) > APPROACH_STEP) {
+    if (delta > 0) {
+      delta -= APPROACH_STEP;
+    } else {
+      delta += APPROACH_STEP;
+    }
+    servo->write(delta + value);
+    delay(APPROACH_DELAY);
+  }
+  servo->write(value);
 }
 
-void setupPanTilt() {
-  pan.attach(13);
-  READY(PAN);
-  tilt.attach(12);
-  READY(TILT);
+void attachMotor(boolean attach) {
+  if (attach) {
+    left.attach(PIN_MOTOR_LEFT, 1000, 2000);
+    right.attach(PIN_MOTOR_RIGHT, 1000, 2000);
+    READY(MOTOR);
+  } else {
+    // do not "return" if not ready, because we can detach at any moment
+    BUSY(MOTOR,);
+    left.detach();
+    right.detach();
+  }
+}
+
+void attachArm(boolean attach) {
+  (void)attach;
+  // TODO: arm
+}
+
+void attachPanTilt(boolean attach) {
+  if (attach) {
+    pan.attach(PIN_PAN);
+    READY(PAN);
+    tilt.attach(PIN_TILT);
+    READY(TILT);
+  } else {
+    // do not "return" if not ready, because we can detach at any moment
+    BUSY(PAN,);
+    pan.detach();
+    BUSY(TILT,);
+    tilt.detach();
+  }
 }
 
 void setup() {
@@ -49,15 +121,16 @@ void setup() {
   READY(BOARD);
 
   environment_sensor.begin();
-  // READY(ENVIRONMENT_SENSOR);
-  // Do not make it ready until the first measurement.
+  // not: READY(ENVIRONMENT_SENSOR);
+  // (do not make it ready until the first measurement)
 
-  setupPanTilt();
-  setupMotor();
+  attachPanTilt(true);
+  attachMotor(true);
+  attachArm(true);
 
   READY(LIGHT_SENSOR);
 
-  play(melody_HappyBirthday, sizeof(melody_HappyBirthday) >> 2);
+  play(PIN_SPEAKER, melody_HappyBirthday, sizeof(melody_HappyBirthday) >> 2);
 }
 
 void loop() {
@@ -71,6 +144,15 @@ void boardCommand(byte value) {
     left.write(90);
     right.write(90);
     READY(MOTOR);
+
+    BUSY(PAN,);
+    pan.write(90);
+    READY(PAN);
+
+    BUSY(TILT,);
+    tilt.write(90);
+    READY(TILT);
+    // TODO: halt arm servos
     break;
   case COMMAND_MEASURE_ENVIRONMENT:
     BUSY(ENVIRONMENT_SENSOR,); // do not "return" if not ready, because it's initial status
@@ -79,17 +161,20 @@ void boardCommand(byte value) {
     READY(ENVIRONMENT_SENSOR);
     break;
   case COMMAND_SLEEP:
-    BUSY(PAN,);
-    pan.detach();
-    BUSY(TILT,);
-    tilt.detach();
-    BUSY(MOTOR,);
-    left.detach();
-    right.detach();
+    attachMotor(false);
+    attachArm(false);
+    attachPanTilt(false);
     break;
   case COMMAND_WAKE:
-    setupMotor();
-    setupPanTilt();
+    attachPanTilt(true);
+    attachArm(true);
+    attachMotor(true);
+    break;
+  case COMMAND_BRAKE:
+    // TODO: implementation
+    break;
+  case COMMAND_RELEASE_BRAKE:
+    // TODO: implementation
     break;
   }
 }
@@ -97,7 +182,7 @@ void boardCommand(byte value) {
 void i2cReceive(int count) {
   (void)count;
 
-  // TODO: see if i2cReceive is called when count is exhausted
+  // TODO: see if i2cReceive is called again when count is exhausted
   while (Wire.available()) {
     i2cRegister = Wire.read();
     if (!Wire.available()) {
@@ -112,27 +197,31 @@ void i2cReceive(int count) {
     case REGISTER(PAN):
       BUSY(PAN, return);
       pan.write(value8);
-      delay(200);
+      delay(MAX_SERVO_ROTATE_TIME);
       READY(PAN);
       break;
     case REGISTER(TILT):
       if (value8 <= MAX_TILT) {
         BUSY(TILT, return);
         tilt.write(value8);
-        delay(200);
+        delay(MAX_SERVO_ROTATE_TIME);
         READY(TILT);
       }
       break;
-    case REGISTER(MOTOR):
+    case REGISTER(MOTOR) + MOTOR_LEFT:
       BUSY(MOTOR, return);
-      left.write(value8);
+      approach(&left, value8);
       READY(MOTOR);
       break;
-    case REGISTER(MOTOR) + 1:
+    case REGISTER(MOTOR) + MOTOR_RIGHT:
       BUSY(MOTOR, return);
-      right.write(value8);
+      approach(&right, value8);
       READY(MOTOR);
       break;
+    case REGISTER(MOTOR) + MOTOR_ENCODER_LEFT_FRONT:
+      // TODO: implementation
+      break;
+    // TODO: REGISTER(MOTOR) + MOTOR_ENCODER_{LEFT,RIGHT}_{BACK,FRONT}
     }
   }
 }
@@ -140,24 +229,36 @@ void i2cReceive(int count) {
 void i2cRequest() {
   int value;
   switch (i2cRegister) {
-  case REGISTER(BOARD):
-    Wire.write((byte *)(&status), 2);
+  case REGISTER(BOARD) + BOARD_STATUS:
+    Wire.write((byte *)(&status), sizeof(status));
     break;
-  case REGISTER(BOARD) + 1:
+  case REGISTER(BOARD) + BOARD_BATTERY:
     // V = analog / 56.88
     // Range = 10.6 .. 12.6
-    value = analogRead(battery_status);
+    value = analogRead(PIN_ANALOG_BATTERY);
     Wire.write((byte)(((float)value / 56.88 - 10.6) * 50));
     break;
   case REGISTER(LIGHT_SENSOR):
-    value = analogRead(light_sensor);
-    Wire.write((byte *)(&value), 2);
+    value = analogRead(PIN_ANALOG_LIGHT_SENSOR);
+    Wire.write((byte *)(&value), sizeof(value));
     break;
-  case REGISTER(ENVIRONMENT_SENSOR):
+  case REGISTER(ENVIRONMENT_SENSOR) + ENVIRONMENT_SENSOR_TEMPERATURE:
     Wire.write(environment_temperature);
     break;
-  case REGISTER(ENVIRONMENT_SENSOR) + 1:
+  case REGISTER(ENVIRONMENT_SENSOR) + ENVIRONMENT_SENSOR_HUMIDITY:
     Wire.write(environment_humidity);
+    break;
+  case REGISTER(MOTOR) + MOTOR_ENCODER_LEFT_FRONT:
+    Wire.write((byte *)(&encoder_left_front), sizeof(encoder_left_front));
+    break;
+  case REGISTER(MOTOR) + MOTOR_ENCODER_LEFT_BACK:
+    Wire.write((byte *)(&encoder_left_back), sizeof(encoder_left_back));
+    break;
+  case REGISTER(MOTOR) + MOTOR_ENCODER_RIGHT_FRONT:
+    Wire.write((byte *)(&encoder_right_front), sizeof(encoder_right_front));
+    break;
+  case REGISTER(MOTOR) + MOTOR_ENCODER_RIGHT_BACK:
+    Wire.write((byte *)(&encoder_right_back), sizeof(encoder_right_back));
     break;
   }
 }
