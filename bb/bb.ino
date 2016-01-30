@@ -6,10 +6,10 @@
 #include "bb.h"
 #include "music.h"
 
+#define DEBUG
+
 Servo pan, tilt;
 Servo left, right;
-
-// TODO: use map() and constrain(TILT)
 
 /*
  * BotBoarduino PINs
@@ -39,6 +39,12 @@ Servo left, right;
 #define PIN_ANALOG_I2C_SDA      4 // i2c enabled by jumper
 #define PIN_ANALOG_I2C_SCL      5 // i2c enabled by jumper
 
+#ifdef DEBUG
+#  define Log Serial.println
+#else
+#  define Log(...)
+#endif
+
 // TODO: read these from Arduino Nano (protocol = ?)
 unsigned long encoder_left_front = 0, encoder_left_back = 0,
               encoder_right_front = 0, encoder_right_back = 0;
@@ -53,33 +59,13 @@ byte i2cRegister = 0xff; // register to read from / write to
 uint16_t status = 0;
 
 #define BUSY(module, ifnotready) { \
-  if (!(status & (MODULE_ ## module))) { \
+  if (!(status & (1 << MODULE_ ## module))) { \
+    Log("Module " #module " received a command but is not ready."); \
     { ifnotready; } \
   } \
   (status = status & ~(MODULE_ ## module)); \
 }
 #define READY(module) (status |= (1 << MODULE_ ## module))
-
-// Motor state can only be changed at STEP per DELAY max speed
-#define APPROACH_STEP 45
-#define APPROACH_DELAY 200
-
-// Max time for Servo to reach new position (worst case, 180 degree turn)
-#define MAX_SERVO_ROTATE_TIME 200
-
-void approach(Servo *servo, byte value) {
-  int16_t delta = ((int16_t)servo->read()) - value;
-  while (abs(delta) > APPROACH_STEP) {
-    if (delta > 0) {
-      delta -= APPROACH_STEP;
-    } else {
-      delta += APPROACH_STEP;
-    }
-    servo->write(delta + value);
-    delay(APPROACH_DELAY);
-  }
-  servo->write(value);
-}
 
 void attachMotor(boolean attach) {
   if (attach) {
@@ -119,6 +105,10 @@ void setup() {
   Wire.onRequest(i2cRequest);
   Wire.onReceive(i2cReceive);
   READY(BOARD);
+
+#ifdef DEBUG
+  Serial.begin(9600);
+#endif
 
   environment_sensor.begin();
   // not: READY(ENVIRONMENT_SENSOR);
@@ -197,25 +187,21 @@ void i2cReceive(int count) {
     case REGISTER(PAN):
       BUSY(PAN, return);
       pan.write(value8);
-      delay(MAX_SERVO_ROTATE_TIME);
       READY(PAN);
       break;
     case REGISTER(TILT):
-      if (value8 <= MAX_TILT) {
-        BUSY(TILT, return);
-        tilt.write(value8);
-        delay(MAX_SERVO_ROTATE_TIME);
-        READY(TILT);
-      }
+      BUSY(TILT, return);
+      tilt.write(constrain(value8, 0, MAX_TILT));
+      READY(TILT);
       break;
     case REGISTER(MOTOR) + MOTOR_LEFT:
       BUSY(MOTOR, return);
-      approach(&left, value8);
+      left.write(value8);
       READY(MOTOR);
       break;
     case REGISTER(MOTOR) + MOTOR_RIGHT:
-      BUSY(MOTOR, return);
-      approach(&right, value8);
+      BUSY(MOTOR, return)
+      right.write(value8);
       READY(MOTOR);
       break;
     case REGISTER(MOTOR) + MOTOR_ENCODER_LEFT_FRONT:
@@ -233,10 +219,10 @@ void i2cRequest() {
     Wire.write((byte *)(&status), sizeof(status));
     break;
   case REGISTER(BOARD) + BOARD_BATTERY:
-    // V = analog / 56.88
-    // Range = 10.6 .. 12.6
+    // centiV = analog * 1.7581
+    // Range = 10.6V .. 12.6V
     value = analogRead(PIN_ANALOG_BATTERY);
-    Wire.write((byte)(((float)value / 56.88 - 10.6) * 50));
+    Wire.write((byte)(value * 1.7581 / 2));
     break;
   case REGISTER(LIGHT_SENSOR):
     value = analogRead(PIN_ANALOG_LIGHT_SENSOR);
