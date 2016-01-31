@@ -47,7 +47,8 @@ Mount /tmp as tmpfs (RAM):
 
 There is a number of ways to run commands at startup, crontab seems most portable:
 
-`@reboot sh -c 'REMOTE_PORT=XXXXXX REMOTE_HOST=YYYYYY $HOME/rover/bin/reverse-tunnel >/dev/null 2>&1 &'`
+`@reboot sh -c 'REMOTE_PORT=XXXXXX REMOTE_HOST=YYYYYY $HOME/rover/bin/reverse-tunnel 2>&1 | logger -t ssh-reverse-tunnel &'`
+`@reboot sh -c 'sleep 1m; PON_PEER=XXXXXX REMOTE_HOST=YYYYYY WLAN_IFACE=ZZZZZZ $HOME/rover/bin/autoswitch-wlan-sim800 2>&1 | logger -t autoswitch-wlan-sim800 &'`
 
 ## groups
 
