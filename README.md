@@ -100,4 +100,9 @@ updetach
 #nobsdcomp
 #nodeflate
 #noaccomp
-``````
+```
+
+## ssh
+
+If planning to use `reverse-tunnel` or friends, make sure `ssh $REMOTE_HOST` works (e.g. doesn't
+ask for host key or password).
