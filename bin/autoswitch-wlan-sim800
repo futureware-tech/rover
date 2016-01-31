@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+
+# A scratch to keep connectivity.
+
+set -e
+
+# Shared functions
+################################################################################
+
+log() {
+	echo $(date) "$@"
+}
+
+# run_with_timeout <timeout> <command>...
+run_with_timeout() {
+	local timeout=$1 pid
+	shift
+	"$@" &
+	pid=$!
+	sleep $timeout &>/dev/null &
+	wait -n $pid $!
+	kill $! 2>/dev/null || true
+	if kill -s SIGTERM $pid 2>/dev/null; then
+		sleep 1
+		kill -s SIGKILL $pid 2>/dev/null || true
+		log "$@" took over $timeout to complete and has been killed
+		return 1
+	else
+		return 0
+	fi
+}
+
+# SIM800 support functions
+################################################################################
+
+: ${PON_PEER?required}
+
+# Itead SIM800 stackable:
+# http://wiki.iteadstudio.com/RPI_SIM800_GSM/GPRS_ADD-ON_V2.0
+
+SYS_GPIO=/sys/class/gpio
+
+# Set GPIO PIN to OUTPUT, write 1, wait 2s, write 0, set PIN to INPUT
+push_button() {
+	echo ${1?No GPIO PIN specified} >"$SYS_GPIO/export" 2>/dev/null || true
+	sleep 0.2 # give udev a chance to fix permissions
+
+	pin="$SYS_GPIO/gpio${1}"
+	echo out >"$pin/direction"
+	echo 1 >"$pin/value"
+	sleep 2
+	echo 0 >"$pin/value"
+	echo in >"$pin/direction"
+	echo $1 >"$SYS_GPIO/unexport"
+}
+
+# Reset Itead SIM800 stackable. Only works when power is on.
+reset_sim800() {
+	log resetting sim800
+	push_button 18
+}
+
+# Change power state of the Itead SIM800 stackable.
+# The result can be verified with AT commands, e.g.:
+#   screen /dev/ttyAMA0 115200
+#   AT+CPIN? # ask if PIN is necessary for the SIM card
+#   AT+CSPN? # ask SIM service provider
+#   AT+CREG? # ask network registration status (X,Y; Y is 1: registered, 2: searching)
+# Alternatively SIM800 can be shut down with AT commands:
+#   AT+CPOWD=1 # or =0 for urgent shutdown
+# Note: power cycling or resetting does not restore all factory settings.
+# For factory settings, use the "ATZ" command.
+power_toggle_sim800() {
+	log toggling sim800 power
+	push_button 17
+}
+
+disconnect_sim800() {
+	log disconnecting sim800 at $PON_PEER
+	poff $PON_PEER || true
+}
+
+# try to (re)connect sim800
+connect_sim800() {
+	disconnect_sim800
+	# we don't know if sim800 is powered on or off
+	power_toggle_sim800
+	# give sim800 a chance to register on the network
+	sleep 30
+	log connecting sim800 on $PON_PEER
+	run_with_timeout 10 pon $PON_PEER || true
+}
+
+# WLAN functions
+################################################################################
+
+: ${WLAN_IFACE?required}
+
+disconnect_wlan() {
+	log disconnecting wlan on $WLAN_IFACE
+	sudo ifdown $WLAN_IFACE || true
+}
+
+# try to (re)connect wlan
+connect_wlan() {
+	disconnect_wlan
+	log connecting wlan on $WLAN_IFACE
+	sudo ifup $WLAN_IFACE || true
+}
+
+# Main program
+################################################################################
+
+: ${REMOTE_HOST?required}
+
+# test that connection is alive (try to ssh a few times)
+is_connected() {
+	local retries=5
+	for i in $(seq 1 $retries); do
+		if run_with_timeout 10 ssh ${REMOTE_HOST} echo success | grep -q success; then
+			return 0
+		fi
+		log ssh failed, try $i
+		sleep 2
+	done
+	log ssh did not succeed after $retries attempts
+	return 1
+}
+
+wait_for_disconnect() {
+	while is_connected; do
+		sleep 20
+	done
+}
+
+log started
+
+wait_for_disconnect
+log first disconnect, starting recovery procedures
+while :; do
+	for device in wlan sim800; do
+		connect_${device}
+		# give connection a chance to stabilize and skip initial peak
+		sleep 5
+		wait_for_disconnect
+		disconnect_${device}
+	done
+done
