@@ -30,11 +30,39 @@ func main() {
 	}
 
 	board := bb.NewBB(bus, bb.Address)
+	_ = board.Wake()
+
+	if s, e := board.GetStatus(); e == nil {
+		fmt.Printf("Status bits: %.16b\n", s)
+	}
+
 	if p, e := board.GetBatteryPercentage(); e != nil {
 		board.Reset(bb.ResetPin)
 		time.Sleep(time.Second)
 	} else {
 		fmt.Println("Battery status (estimated):", p, "%")
+	}
+
+	if l, e := board.GetBrightness(); e == nil {
+		fmt.Println("Brightness (0-1023):", l)
+	}
+
+	/*board.MotorRight(bb.MaxMotorSpeed / 2)
+	time.Sleep(100 * time.Millisecond)
+	board.MotorRight(0)
+	time.Sleep(time.Second)
+	board.MotorLeft(bb.MaxMotorSpeed / 2)
+	time.Sleep(100 * time.Millisecond)
+	board.MotorLeft(0)*/
+
+	_ = board.Pan(30)
+	_ = board.Tilt(45)
+	time.Sleep(time.Second)
+	_ = board.Pan(90)
+	_ = board.Tilt(0)
+
+	if t, h, e := board.GetTemperatureAndHumidity(); e == nil {
+		fmt.Println("Temperature", t, "*C, humidity", h, "%")
 	}
 
 	b := bpi.NewBrightPI(bus, bpi.DefaultAddress)
@@ -43,26 +71,29 @@ func main() {
 
 	_ = b.Dim(bpi.WhiteAll, bpi.DefaultDim)
 	_ = b.Gain(bpi.DefaultGain)
-	go ledCircle(b, 16)
+	go ledCircle(b, 2)
 
 	// Simple GetDistance
 	fmt.Println(s.GetDistance())
 
 	// Continuous mode
-	_ = s.SetContinuousMode(50, 100*time.Millisecond)
+	/*_ = s.SetContinuousMode(50, 100*time.Millisecond)
 	_ = s.Acquire(false)
 	for i := 0; i < 50; i++ {
 		fmt.Println("Round", i)
 		fmt.Println(s.ReadDistance())
 		fmt.Println(s.ReadVelocity())
 		time.Sleep(100 * time.Millisecond)
-	}
+	}*/
 
 	if hw, sw, err := s.GetVersion(); err == nil {
 		fmt.Printf("LIDAR-Lite v2 \"Blue Label\" hw%dsw%d\n", hw, sw)
 	}
 
+	time.Sleep(time.Second)
+
 	// Put devices in low power consumption mode
 	_ = s.Sleep()
 	_ = b.Sleep()
+	_ = board.Sleep()
 }
