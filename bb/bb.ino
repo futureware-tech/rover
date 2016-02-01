@@ -6,8 +6,6 @@
 #include "bb.h"
 #include "music.h"
 
-#define DEBUG
-
 Servo pan, tilt;
 Servo left, right;
 
@@ -39,15 +37,9 @@ Servo left, right;
 #define PIN_ANALOG_I2C_SDA      4 // i2c enabled by jumper
 #define PIN_ANALOG_I2C_SCL      5 // i2c enabled by jumper
 
-#ifdef DEBUG
-#  define Log Serial.println
-#else
-#  define Log(...)
-#endif
-
 // TODO: read these from Arduino Nano (protocol = ?)
-unsigned long encoder_left_front = 0, encoder_left_back = 0,
-              encoder_right_front = 0, encoder_right_back = 0;
+long encoder_left_front = 0, encoder_left_back = 0,
+     encoder_right_front = 0, encoder_right_back = 0;
 
 DHT environment_sensor(PIN_ENVIRONMENT_SENSOR, DHT11);
 byte environment_temperature, environment_humidity;
@@ -58,12 +50,12 @@ byte i2cRegister = 0xff; // register to read from / write to
 
 uint16_t status = 0;
 
+#define ISREADY(module) (status & (1 << MODULE_ ## module))
 #define BUSY(module, ifnotready) { \
-  if (!(status & (1 << MODULE_ ## module))) { \
-    Log("Module " #module " received a command but is not ready."); \
+  if (!ISREADY(module)) { \
     { ifnotready; } \
   } \
-  (status = status & ~(MODULE_ ## module)); \
+  (status = status & ~(1 << MODULE_ ## module)); \
 }
 #define READY(module) (status |= (1 << MODULE_ ## module))
 
@@ -102,13 +94,10 @@ void attachPanTilt(boolean attach) {
 
 void setup() {
   Wire.begin(I2C_ADDRESS); // join i2c channel
-  Wire.onRequest(i2cRequest);
   Wire.onReceive(i2cReceive);
+  READY(COMMAND);
+  Wire.onRequest(i2cRequest);
   READY(BOARD);
-
-#ifdef DEBUG
-  Serial.begin(9600);
-#endif
 
   environment_sensor.begin();
   // not: READY(ENVIRONMENT_SENSOR);
@@ -124,6 +113,12 @@ void setup() {
 }
 
 void loop() {
+  if (!ISREADY(ENVIRONMENT_SENSOR)) {
+    // DHT library uses delay() internally, which can't be used in interrupts
+    environment_temperature = (byte)environment_sensor.readTemperature();
+    environment_humidity = (byte)environment_sensor.readHumidity();
+    READY(ENVIRONMENT_SENSOR);
+  }
   delay(100);
 }
 
@@ -145,10 +140,8 @@ void boardCommand(byte value) {
     // TODO: halt arm servos
     break;
   case COMMAND_MEASURE_ENVIRONMENT:
-    BUSY(ENVIRONMENT_SENSOR,); // do not "return" if not ready, because it's initial status
-    environment_temperature = (byte)environment_sensor.readTemperature();
-    environment_humidity = (byte)environment_sensor.readHumidity();
-    READY(ENVIRONMENT_SENSOR);
+    // an indicator for the main loop()
+    BUSY(ENVIRONMENT_SENSOR,);
     break;
   case COMMAND_SLEEP:
     attachMotor(false);
@@ -212,11 +205,16 @@ void i2cReceive(int count) {
   }
 }
 
+void writeWord(uint16_t value) {
+  value = (value << 8) | (value >> 8);
+  Wire.write((byte *)(&value), sizeof(value));
+}
+
 void i2cRequest() {
   int value;
   switch (i2cRegister) {
   case REGISTER(BOARD) + BOARD_STATUS:
-    Wire.write((byte *)(&status), sizeof(status));
+    writeWord(status);
     break;
   case REGISTER(BOARD) + BOARD_BATTERY:
     // centiV = analog * 1.7581
@@ -226,7 +224,7 @@ void i2cRequest() {
     break;
   case REGISTER(LIGHT_SENSOR):
     value = analogRead(PIN_ANALOG_LIGHT_SENSOR);
-    Wire.write((byte *)(&value), sizeof(value));
+    writeWord(value);
     break;
   case REGISTER(ENVIRONMENT_SENSOR) + ENVIRONMENT_SENSOR_TEMPERATURE:
     Wire.write(environment_temperature);
@@ -234,6 +232,7 @@ void i2cRequest() {
   case REGISTER(ENVIRONMENT_SENSOR) + ENVIRONMENT_SENSOR_HUMIDITY:
     Wire.write(environment_humidity);
     break;
+  // TODO: send big endian over the network?
   case REGISTER(MOTOR) + MOTOR_ENCODER_LEFT_FRONT:
     Wire.write((byte *)(&encoder_left_front), sizeof(encoder_left_front));
     break;

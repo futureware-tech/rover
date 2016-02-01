@@ -22,7 +22,7 @@ install:
     - go get github.com/mattn/goveralls
     # BotBoarduino part
     - pip install --user --upgrade platformio
-    - platformio lib install 19 # Adafruit-DHT
+    - platformio lib install 19 580 # Adafruit-DHT, EasyVR
 
 script:
     # Raspberry Pi part
