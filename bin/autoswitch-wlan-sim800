@@ -109,13 +109,17 @@ connect_wlan() {
 
 : ${REMOTE_HOST?required}
 
+failures_in_a_row=0
+
 # test that connection is alive (try to ssh a few times)
 is_connected() {
 	local retries=5
 	for i in $(seq 1 $retries); do
 		if run_with_timeout 10 ssh ${REMOTE_HOST} echo success | grep -q success; then
+			failures_in_a_row=0
 			return 0
 		fi
+		let 'failures_in_a_row++'
 		echo ssh failed, try $i
 		sleep 2
 	done
@@ -141,4 +145,8 @@ while :; do
 		wait_for_disconnect
 		disconnect_${device}
 	done
+	if [ $failures_in_a_row -gt 30 ]; then
+		echo $failures_in_a_row failures in a row, rebooting
+		sudo reboot || true
+	fi
 done
