@@ -43,17 +43,33 @@ func main() {
 		fmt.Println("Battery status (estimated):", p, "%")
 	}
 
-	if l, e := board.GetBrightness(); e == nil {
+	if l, e := board.GetAmbientLight(); e == nil {
 		fmt.Println("Brightness (0-1023):", l)
 	}
 
-	/*board.MotorRight(bb.MaxMotorSpeed / 2)
-	time.Sleep(100 * time.Millisecond)
-	board.MotorRight(0)
+	_ = board.MotorRight(bb.MaxMotorSpeed / 2)
+	time.Sleep(300 * time.Millisecond)
+	_ = board.MotorRight(0)
 	time.Sleep(time.Second)
-	board.MotorLeft(bb.MaxMotorSpeed / 2)
-	time.Sleep(100 * time.Millisecond)
-	board.MotorLeft(0)*/
+	_ = board.MotorLeft(bb.MaxMotorSpeed / 2)
+	time.Sleep(300 * time.Millisecond)
+	_ = board.MotorLeft(0)
+
+	_ = board.ArmBasePan(0)
+	_ = board.ArmBaseTilt(45)
+	_ = board.ArmElbow(125)
+	_ = board.ArmWristRotate(0)
+	time.Sleep(time.Second)
+	_ = board.ArmWristRotate(90)
+	_ = board.ArmWristTilt(90)
+	_ = board.ArmGrip(0)
+	time.Sleep(time.Second)
+	_ = board.ArmWristTilt(45)
+	_ = board.ArmGrip(180)
+	_ = board.ArmElbow(90)
+	_ = board.ArmBaseTilt(90)
+	_ = board.ArmBasePan(90)
+	time.Sleep(time.Second)
 
 	_ = board.Pan(30)
 	_ = board.Tilt(45)

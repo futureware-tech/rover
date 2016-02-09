@@ -6,157 +6,168 @@
 #include "bb.h"
 #include "music.h"
 
-Servo pan, tilt;
-Servo left, right;
-
 /*
  * BotBoarduino PINs
  * According to http://www.lynxmotion.com/images/html/build185.htm and some others.
  * Servos: PWM vs PPM: http://forum.arduino.cc/index.php/topic,14146.0.html
  */
 
-#define PIN_SERIAL_RX           0
-#define PIN_SERIAL_TX           1
-#define PIN_MOTOR_LEFT          2
-#define PIN_MOTOR_RIGHT         3 // PWM
-#define PIN_ENVIRONMENT_SENSOR  4
-#define PIN_SPEAKER             5 // speaker enabled by jumper, PWM/timer
-#define PIN_RESERVED0           6 // PWM/timer
-#define PIN_RESERVED1           7 // A LED enabled by jumper, A button
-#define PIN_RESERVED2           8 // B LED enabled by jumper, B button
-#define PIN_RESERVED3           9 // C LED enabled by jumper, C button, PWM
-#define PIN_RESERVED4          10 // PWM
-#define PIN_RESERVED5          11 // PWM
-#define PIN_TILT               12
-#define PIN_PAN                13 // "L" LED
+enum {
+  PinSerialRX = 0,
+  PinSerialTX = 1,
+  PinMotorLeft = 2,      // (green wire)
+  PinMotorRight = 3,     // PWM (yellow wire)
+  PinEnvironmentSensor = 4,
+  PinSpeaker = 5,        // speaker enabled by jumper, PWM/timer
+  PinArmBasePan = 6,     // PWM/timer
+  PinArmBaseTilt = 7,    // A LED enabled by jumper, A button
+  PinArmElbow = 8,       // B LED enabled by jumper, B button
+  PinArmWristRotate = 9, // C LED enabled by jumper, C button, PWM
+  PinArmWristTilt = 10,  // PWM
+  PinArmGrip = 11,       // PWM
+  PinPanTiltTilt = 12,
+  PinPanTiltPan = 13,    // "L" LED
+};
 
-#define PIN_ANALOG_RESERVED0    0
-#define PIN_ANALOG_RESERVED1    1
-#define PIN_ANALOG_BATTERY      2
-#define PIN_ANALOG_LIGHT_SENSOR 3
-#define PIN_ANALOG_I2C_SDA      4 // i2c enabled by jumper
-#define PIN_ANALOG_I2C_SCL      5 // i2c enabled by jumper
+enum {
+  AnalogPinBattery = 2,
+  AnalogPinLightSensor = 3,
+  AnalogPinI2CSDA = 4, // i2c enabled by jumper (blue wire)
+  AnalogPinI2CSCL = 5, // i2c enabled by jumper (green wire)
+};
 
-// TODO: read these from Arduino Nano (protocol = ?)
+Servo PanTiltPan, PanTiltTilt,
+      MotorLeft, MotorRight,
+      ArmBasePan, ArmBaseTilt,
+      ArmElbow, ArmGrip,
+      ArmWristRotate, ArmWristTilt;
+
 long encoder_left_front = 0, encoder_left_back = 0,
      encoder_right_front = 0, encoder_right_back = 0;
 
-DHT environment_sensor(PIN_ENVIRONMENT_SENSOR, DHT11);
+DHT EnvironmentSensor(PinEnvironmentSensor, DHT11);
 byte environment_temperature, environment_humidity;
 
 byte i2cRegister = 0xff; // register to read from / write to
 
-#define REGISTER(module) ((MODULE_ ## module) * 0x10)
+#define MODULE_REGISTER(module) ((Module ## module) * 0x10)
 
 uint16_t status = 0;
-
-#define ISREADY(module) (status & (1 << MODULE_ ## module))
-#define BUSY(module, ifnotready) { \
-  if (!ISREADY(module)) { \
+#define MODULE_ISREADY(module) (status & (1 << Module ## module))
+#define MODULE_BUSY(module, ifnotready) { \
+  if (!MODULE_ISREADY(module)) { \
     { ifnotready; } \
   } \
-  (status = status & ~(1 << MODULE_ ## module)); \
+  (status = status & ~(1 << Module ## module)); \
 }
-#define READY(module) (status |= (1 << MODULE_ ## module))
+#define MODULE_READY(module) (status |= (1 << Module ## module))
 
 void attachMotor(boolean attach) {
   if (attach) {
-    left.attach(PIN_MOTOR_LEFT, 1000, 2000);
-    right.attach(PIN_MOTOR_RIGHT, 1000, 2000);
-    READY(MOTOR);
+    MotorLeft.attach(PinMotorLeft, 1000, 2000);
+    MotorRight.attach(PinMotorRight, 1000, 2000);
+    MODULE_READY(Motor);
   } else {
     // do not "return" if not ready, because we can detach at any moment
-    BUSY(MOTOR,);
-    left.detach();
-    right.detach();
+    MODULE_BUSY(Motor,);
+    MotorLeft.detach();
+    MotorRight.detach();
   }
 }
 
 void attachArm(boolean attach) {
-  (void)attach;
-  // TODO: arm
+  if (attach) {
+    ArmBasePan.attach(PinArmBasePan);
+    ArmBaseTilt.attach(PinArmBaseTilt);
+    ArmElbow.attach(PinArmElbow);
+    ArmWristRotate.attach(PinArmWristRotate);
+    ArmWristTilt.attach(PinArmWristTilt);
+    ArmGrip.attach(PinArmGrip);
+    MODULE_READY(Arm);
+  } else {
+    // do not "return" if not ready, because we can detach at any moment
+    MODULE_BUSY(Arm,);
+    ArmBasePan.detach();
+    ArmBaseTilt.detach();
+    ArmElbow.detach();
+    ArmWristRotate.detach();
+    ArmWristTilt.detach();
+    ArmGrip.detach();
+  }
 }
 
 void attachPanTilt(boolean attach) {
   if (attach) {
-    pan.attach(PIN_PAN);
-    READY(PAN);
-    tilt.attach(PIN_TILT);
-    READY(TILT);
+    PanTiltPan.attach(PinPanTiltPan);
+    PanTiltTilt.attach(PinPanTiltTilt);
+    MODULE_READY(PanTilt);
   } else {
     // do not "return" if not ready, because we can detach at any moment
-    BUSY(PAN,);
-    pan.detach();
-    BUSY(TILT,);
-    tilt.detach();
+    MODULE_BUSY(PanTilt,);
+    PanTiltPan.detach();
+    PanTiltTilt.detach();
   }
 }
 
 void setup() {
-  Wire.begin(I2C_ADDRESS); // join i2c channel
+  Wire.begin(I2CAddress); // join i2c channel
   Wire.onReceive(i2cReceive);
-  READY(COMMAND);
+  MODULE_READY(Command);
   Wire.onRequest(i2cRequest);
-  READY(BOARD);
+  MODULE_READY(Board);
 
-  environment_sensor.begin();
-  // not: READY(ENVIRONMENT_SENSOR);
+  EnvironmentSensor.begin();
+  // not: READY(EnvironmentSensor);
   // (do not make it ready until the first measurement)
 
   attachPanTilt(true);
   attachMotor(true);
   attachArm(true);
 
-  READY(LIGHT_SENSOR);
+  MODULE_READY(LightSensor);
 
-  play(PIN_SPEAKER, melody_HappyBirthday, sizeof(melody_HappyBirthday) >> 2);
+  //play(PinSpeaker, melody_HappyBirthday, sizeof(melody_HappyBirthday) >> 2);
 }
 
 void loop() {
-  if (!ISREADY(ENVIRONMENT_SENSOR)) {
+  if (!MODULE_ISREADY(EnvironmentSensor)) {
     // DHT library uses delay() internally, which can't be used in interrupts
-    environment_temperature = (byte)environment_sensor.readTemperature();
-    environment_humidity = (byte)environment_sensor.readHumidity();
-    READY(ENVIRONMENT_SENSOR);
+    environment_temperature = (byte)EnvironmentSensor.readTemperature();
+    environment_humidity = (byte)EnvironmentSensor.readHumidity();
+    MODULE_READY(EnvironmentSensor);
   }
   delay(100);
 }
 
 void boardCommand(byte value) {
   switch (value) {
-  case COMMAND_HALT:
-    BUSY(MOTOR,);
-    left.write(90);
-    right.write(90);
-    READY(MOTOR);
+  case CommandHalt:
+    MotorLeft.write(90);
+    MotorRight.write(90);
 
-    BUSY(PAN,);
-    pan.write(90);
-    READY(PAN);
+    PanTiltPan.write(90);
+    PanTiltTilt.write(90);
 
-    BUSY(TILT,);
-    tilt.write(90);
-    READY(TILT);
     // TODO: halt arm servos
     break;
-  case COMMAND_MEASURE_ENVIRONMENT:
+  case CommandMeasureEnvironment:
     // an indicator for the main loop()
-    BUSY(ENVIRONMENT_SENSOR,);
+    MODULE_BUSY(EnvironmentSensor,);
     break;
-  case COMMAND_SLEEP:
+  case CommandSleep:
     attachMotor(false);
     attachArm(false);
     attachPanTilt(false);
     break;
-  case COMMAND_WAKE:
+  case CommandWake:
     attachPanTilt(true);
     attachArm(true);
     attachMotor(true);
     break;
-  case COMMAND_BRAKE:
+  case CommandBrake:
     // TODO: implementation
     break;
-  case COMMAND_RELEASE_BRAKE:
+  case CommandReleaseBrake:
     // TODO: implementation
     break;
   }
@@ -174,33 +185,27 @@ void i2cReceive(int count) {
     byte value8 = Wire.read();
 
     switch (i2cRegister) {
-    case REGISTER(COMMAND):
+    case MODULE_REGISTER(Command):
       boardCommand(value8);
       break;
-    case REGISTER(PAN):
-      BUSY(PAN, return);
-      pan.write(value8);
-      READY(PAN);
-      break;
-    case REGISTER(TILT):
-      BUSY(TILT, return);
-      tilt.write(constrain(value8, 0, MAX_TILT));
-      READY(TILT);
-      break;
-    case REGISTER(MOTOR) + MOTOR_LEFT:
-      BUSY(MOTOR, return);
-      left.write(value8);
-      READY(MOTOR);
-      break;
-    case REGISTER(MOTOR) + MOTOR_RIGHT:
-      BUSY(MOTOR, return)
-      right.write(value8);
-      READY(MOTOR);
-      break;
-    case REGISTER(MOTOR) + MOTOR_ENCODER_LEFT_FRONT:
-      // TODO: implementation
-      break;
-    // TODO: REGISTER(MOTOR) + MOTOR_ENCODER_{LEFT,RIGHT}_{BACK,FRONT}
+
+#define SERVO_CASE_WITH_ADDITION(module, addition, value) \
+  case MODULE_REGISTER(module) + Module ## module ## addition: \
+    module ## addition.write(value); \
+    break;
+
+    SERVO_CASE_WITH_ADDITION(PanTilt, Pan, value8)
+    SERVO_CASE_WITH_ADDITION(PanTilt, Tilt, constrain(value8, 0, MaxTilt))
+    SERVO_CASE_WITH_ADDITION(Motor, Left, value8)
+    SERVO_CASE_WITH_ADDITION(Motor, Right, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, BasePan, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, BaseTilt, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, Elbow, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, WristRotate, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, WristTilt, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, Grip, value8)
+
+    // TODO: MODULE_REGISTER(Motor) + ModuleMotorEncoder{Left,Right}{Back,Front}
     }
   }
 }
@@ -213,37 +218,25 @@ void writeWord(uint16_t value) {
 void i2cRequest() {
   int value;
   switch (i2cRegister) {
-  case REGISTER(BOARD) + BOARD_STATUS:
+  case MODULE_REGISTER(Board) + ModuleBoardStatus:
     writeWord(status);
     break;
-  case REGISTER(BOARD) + BOARD_BATTERY:
+  case MODULE_REGISTER(Board) + ModuleBoardBattery:
     // centiV = analog * 1.7581
     // Range = 10.6V .. 12.6V
-    value = analogRead(PIN_ANALOG_BATTERY);
+    value = analogRead(AnalogPinBattery);
     Wire.write((byte)(value * 1.7581 / 2));
     break;
-  case REGISTER(LIGHT_SENSOR):
-    value = analogRead(PIN_ANALOG_LIGHT_SENSOR);
+  case MODULE_REGISTER(LightSensor):
+    value = analogRead(AnalogPinLightSensor);
     writeWord(value);
     break;
-  case REGISTER(ENVIRONMENT_SENSOR) + ENVIRONMENT_SENSOR_TEMPERATURE:
+  case MODULE_REGISTER(EnvironmentSensor) + ModuleEnvironmentSensorTemperature:
     Wire.write(environment_temperature);
     break;
-  case REGISTER(ENVIRONMENT_SENSOR) + ENVIRONMENT_SENSOR_HUMIDITY:
+  case MODULE_REGISTER(EnvironmentSensor) + ModuleEnvironmentSensorHumidity:
     Wire.write(environment_humidity);
     break;
-  // TODO: send big endian over the network?
-  case REGISTER(MOTOR) + MOTOR_ENCODER_LEFT_FRONT:
-    Wire.write((byte *)(&encoder_left_front), sizeof(encoder_left_front));
-    break;
-  case REGISTER(MOTOR) + MOTOR_ENCODER_LEFT_BACK:
-    Wire.write((byte *)(&encoder_left_back), sizeof(encoder_left_back));
-    break;
-  case REGISTER(MOTOR) + MOTOR_ENCODER_RIGHT_FRONT:
-    Wire.write((byte *)(&encoder_right_front), sizeof(encoder_right_front));
-    break;
-  case REGISTER(MOTOR) + MOTOR_ENCODER_RIGHT_BACK:
-    Wire.write((byte *)(&encoder_right_back), sizeof(encoder_right_back));
-    break;
+  // TODO: implement reading encoders
   }
 }
