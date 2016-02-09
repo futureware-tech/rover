@@ -58,6 +58,7 @@ func register(module int) byte {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Sending commands/actions to Arduino
 const (
 	ModuleCommand             = C.ModuleCommand
@@ -66,6 +67,7 @@ const (
 	commandWake               = C.CommandWake
 	commandBrake              = C.CommandBrake
 	commandReleaseBrake       = C.CommandReleaseBrake
+	commandHalt               = C.CommandHalt
 )
 
 // Sleep reduces power usage of the module (and some hardware)
@@ -90,7 +92,13 @@ func (bb *BB) Brake(brake bool) error {
 	return bb.bus.WriteByteToReg(bb.address, register(ModuleCommand), command)
 }
 
+// Halt stops all movement of the robot
+func (bb *BB) Halt() error {
+	return bb.bus.WriteByteToReg(bb.address, register(ModuleCommand), commandHalt)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Reading Arduino board state
 const (
 	ModuleBoard        = C.ModuleBoard
@@ -114,6 +122,7 @@ func (bb *BB) GetBatteryPercentage() (byte, error) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Controlling robot motors
 const (
 	ModuleMotor      = C.ModuleMotor
@@ -136,6 +145,7 @@ func (bb *BB) MotorRight(speed int8) error {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Ambient light sensor installed on the robot
 const (
 	ModuleLightSensor = C.ModuleLightSensor
@@ -148,6 +158,7 @@ func (bb *BB) GetAmbientLight() (uint16, error) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Environment sensor installed on the robot
 const (
 	ModuleEnvironmentSensor            = C.ModuleEnvironmentSensor
@@ -174,6 +185,7 @@ func (bb *BB) GetTemperatureAndHumidity() (t byte, h byte, e error) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Pan & Tilt installed on the robot, normally has LIDAR attached
 const (
 	ModulePanTilt     = C.ModulePanTilt
@@ -194,6 +206,7 @@ func (bb *BB) Tilt(angle byte) error {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Robotic ARM controls
 const (
 	ModuleArm            = C.ModuleArm
