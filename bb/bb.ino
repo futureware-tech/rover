@@ -15,8 +15,8 @@
 enum {
   PinSerialRX = 0,
   PinSerialTX = 1,
-  PinMotorLeft = 2,      // (green wire)
-  PinMotorRight = 3,     // PWM (yellow wire)
+  PinReserved0 = 2,
+  PinReserved1 = 3,      // PWM
   PinEnvironmentSensor = 4,
   PinSpeaker = 5,        // speaker enabled by jumper, PWM/timer
   PinArmBasePan = 6,     // PWM/timer
@@ -37,22 +37,18 @@ enum {
 };
 
 Servo PanTiltPan, PanTiltTilt,
-      MotorLeft, MotorRight,
       ArmBasePan, ArmBaseTilt,
       ArmElbow, ArmGrip,
       ArmWristRotate, ArmWristTilt;
 
-long encoder_left_front = 0, encoder_left_back = 0,
-     encoder_right_front = 0, encoder_right_back = 0;
-
 DHT EnvironmentSensor(PinEnvironmentSensor, DHT11);
-byte environment_temperature, environment_humidity;
+volatile byte environment_temperature, environment_humidity;
 
-byte i2cRegister = 0xff; // register to read from / write to
+volatile byte i2cRegister = 0xff; // register to read from / write to
 
 #define MODULE_REGISTER(module) ((Module ## module) * 0x10)
 
-uint16_t status = 0;
+volatile uint16_t status = 0;
 #define MODULE_ISREADY(module) (status & (1 << Module ## module))
 #define MODULE_BUSY(module, ifnotready) { \
   if (!MODULE_ISREADY(module)) { \
@@ -61,19 +57,6 @@ uint16_t status = 0;
   (status = status & ~(1 << Module ## module)); \
 }
 #define MODULE_READY(module) (status |= (1 << Module ## module))
-
-void attachMotor(boolean attach) {
-  if (attach) {
-    MotorLeft.attach(PinMotorLeft, 1000, 2000);
-    MotorRight.attach(PinMotorRight, 1000, 2000);
-    MODULE_READY(Motor);
-  } else {
-    // do not "return" if not ready, because we can detach at any moment
-    MODULE_BUSY(Motor,);
-    MotorLeft.detach();
-    MotorRight.detach();
-  }
-}
 
 void attachArm(boolean attach) {
   if (attach) {
@@ -121,7 +104,6 @@ void setup() {
   // (do not make it ready until the first measurement)
 
   attachPanTilt(true);
-  attachMotor(true);
   attachArm(true);
 
   MODULE_READY(LightSensor);
@@ -141,72 +123,46 @@ void loop() {
 
 void boardCommand(byte value) {
   switch (value) {
-  case CommandHalt:
-    MotorLeft.write(90);
-    MotorRight.write(90);
-
-    PanTiltPan.write(90);
-    PanTiltTilt.write(90);
-
-    // TODO: halt arm servos
-    break;
   case CommandMeasureEnvironment:
     // an indicator for the main loop()
     MODULE_BUSY(EnvironmentSensor,);
     break;
   case CommandSleep:
-    attachMotor(false);
     attachArm(false);
     attachPanTilt(false);
     break;
   case CommandWake:
     attachPanTilt(true);
     attachArm(true);
-    attachMotor(true);
-    break;
-  case CommandBrake:
-    // TODO: implementation
-    break;
-  case CommandReleaseBrake:
-    // TODO: implementation
     break;
   }
 }
 
 void i2cReceive(int count) {
-  (void)count;
+  i2cRegister = Wire.read();
+  if (count == 1) {
+    return;
+  }
+  byte value8 = Wire.read();
 
-  // TODO: see if i2cReceive is called again when count is exhausted
-  while (Wire.available()) {
-    i2cRegister = Wire.read();
-    if (!Wire.available()) {
-      return;
-    }
-    byte value8 = Wire.read();
-
-    switch (i2cRegister) {
-    case MODULE_REGISTER(Command):
-      boardCommand(value8);
-      break;
+  switch (i2cRegister) {
+  case MODULE_REGISTER(Command):
+    boardCommand(value8);
+    break;
 
 #define SERVO_CASE_WITH_ADDITION(module, addition, value) \
   case MODULE_REGISTER(module) + Module ## module ## addition: \
     module ## addition.write(value); \
     break;
 
-    SERVO_CASE_WITH_ADDITION(PanTilt, Pan, value8)
-    SERVO_CASE_WITH_ADDITION(PanTilt, Tilt, constrain(value8, 0, MaxTilt))
-    SERVO_CASE_WITH_ADDITION(Motor, Left, value8)
-    SERVO_CASE_WITH_ADDITION(Motor, Right, value8)
-    SERVO_CASE_WITH_ADDITION(Arm, BasePan, value8)
-    SERVO_CASE_WITH_ADDITION(Arm, BaseTilt, value8)
-    SERVO_CASE_WITH_ADDITION(Arm, Elbow, value8)
-    SERVO_CASE_WITH_ADDITION(Arm, WristRotate, value8)
-    SERVO_CASE_WITH_ADDITION(Arm, WristTilt, value8)
-    SERVO_CASE_WITH_ADDITION(Arm, Grip, value8)
-
-    // TODO: MODULE_REGISTER(Motor) + ModuleMotorEncoder{Left,Right}{Back,Front}
-    }
+  SERVO_CASE_WITH_ADDITION(PanTilt, Pan, value8)
+  SERVO_CASE_WITH_ADDITION(PanTilt, Tilt, constrain(value8, 0, MaxTilt))
+  SERVO_CASE_WITH_ADDITION(Arm, BasePan, value8)
+  SERVO_CASE_WITH_ADDITION(Arm, BaseTilt, value8)
+  SERVO_CASE_WITH_ADDITION(Arm, Elbow, value8)
+  SERVO_CASE_WITH_ADDITION(Arm, WristRotate, value8)
+  SERVO_CASE_WITH_ADDITION(Arm, WristTilt, value8)
+  SERVO_CASE_WITH_ADDITION(Arm, Grip, value8)
   }
 }
 
@@ -237,6 +193,5 @@ void i2cRequest() {
   case MODULE_REGISTER(EnvironmentSensor) + ModuleEnvironmentSensorHumidity:
     Wire.write(environment_humidity);
     break;
-  // TODO: implement reading encoders
   }
 }

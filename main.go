@@ -9,6 +9,7 @@ import (
 	"github.com/dasfoo/i2c"
 	"github.com/dasfoo/lidar-lite-v2"
 	"github.com/dasfoo/rover/bb"
+	"github.com/dasfoo/rover/mc"
 )
 
 func ledCircle(b *bpi.BrightPI, circles int) {
@@ -47,13 +48,27 @@ func main() {
 		fmt.Println("Brightness (0-1023):", l)
 	}
 
-	_ = board.MotorRight(bb.MaxMotorSpeed / 2)
+	mco := mc.NewMC(bus, mc.Address)
+
+	fmt.Println("Encoders:")
+	fmt.Println(mco.ReadEncoder(mc.EncoderLeftFront))
+	fmt.Println(mco.ReadEncoder(mc.EncoderLeftBack))
+	fmt.Println(mco.ReadEncoder(mc.EncoderRightFront))
+	fmt.Println(mco.ReadEncoder(mc.EncoderRightBack))
+
+	_ = mco.Right(mc.MaxSpeed / 2)
 	time.Sleep(300 * time.Millisecond)
-	_ = board.MotorRight(0)
+	_ = mco.Right(0)
 	time.Sleep(time.Second)
-	_ = board.MotorLeft(bb.MaxMotorSpeed / 2)
+	_ = mco.Left(mc.MaxSpeed / 2)
 	time.Sleep(300 * time.Millisecond)
-	_ = board.MotorLeft(0)
+	_ = mco.Left(0)
+
+	fmt.Println("Encoders (after move):")
+	fmt.Println(mco.ReadEncoder(mc.EncoderLeftFront))
+	fmt.Println(mco.ReadEncoder(mc.EncoderLeftBack))
+	fmt.Println(mco.ReadEncoder(mc.EncoderRightFront))
+	fmt.Println(mco.ReadEncoder(mc.EncoderRightBack))
 
 	_ = board.ArmBasePan(0)
 	_ = board.ArmBaseTilt(45)
@@ -111,5 +126,6 @@ func main() {
 	// Put devices in low power consumption mode
 	_ = s.Sleep()
 	_ = b.Sleep()
+	_ = mc.Sleep()
 	_ = board.Sleep()
 }

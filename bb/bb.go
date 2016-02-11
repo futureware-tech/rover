@@ -19,9 +19,6 @@ const ResetPin = 4
 // MaxTilt is a maximum allowed value for tilt (degrees)
 const MaxTilt = C.MaxTilt
 
-// MaxMotorSpeed is a max speed (positive or negative) for motors
-const MaxMotorSpeed = 90
-
 // StatusError is returned when the status returned by BB is not compatible with the command
 type StatusError struct {
 	Status uint16
@@ -65,9 +62,6 @@ const (
 	commandMeasureEnvironment = C.CommandMeasureEnvironment
 	commandSleep              = C.CommandSleep
 	commandWake               = C.CommandWake
-	commandBrake              = C.CommandBrake
-	commandReleaseBrake       = C.CommandReleaseBrake
-	commandHalt               = C.CommandHalt
 )
 
 // Sleep reduces power usage of the module (and some hardware)
@@ -78,23 +72,6 @@ func (bb *BB) Sleep() error {
 // Wake is necessary to re-enable hardware disabled by Sleep()
 func (bb *BB) Wake() error {
 	return bb.bus.WriteByteToReg(bb.address, register(ModuleCommand), commandWake)
-}
-
-// Brake enables or disables an algorithm which tries to keep motor encoder deltas to zero.
-// It basically means that whenever an encoder detects wheel movement, power is applied to
-// the motors to revert to the previous encoder position.
-// This is a somewhat similar to a car brake.
-func (bb *BB) Brake(brake bool) error {
-	command := byte(commandBrake)
-	if !brake {
-		command = commandReleaseBrake
-	}
-	return bb.bus.WriteByteToReg(bb.address, register(ModuleCommand), command)
-}
-
-// Halt stops all movement of the robot
-func (bb *BB) Halt() error {
-	return bb.bus.WriteByteToReg(bb.address, register(ModuleCommand), commandHalt)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,29 +96,6 @@ func (bb *BB) GetStatus() (uint16, error) {
 func (bb *BB) GetBatteryPercentage() (byte, error) {
 	// TODO: check status
 	return bb.bus.ReadByteFromReg(bb.address, register(ModuleBoard)+moduleBoardBattery)
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Controlling robot motors
-const (
-	ModuleMotor      = C.ModuleMotor
-	moduleMotorLeft  = C.ModuleMotorLeft
-	moduleMotorRight = C.ModuleMotorRight
-)
-
-// MotorLeft changes left motor speed, range -MaxMotorSpeed .. MaxMotorSpeed
-func (bb *BB) MotorLeft(speed int8) error {
-	// TODO: check status
-	return bb.bus.WriteByteToReg(bb.address, register(ModuleMotor)+moduleMotorLeft,
-		byte(int(speed)+MaxMotorSpeed))
-}
-
-// MotorRight changes right motor speed, range -MaxMotorSpeed .. MaxMotorSpeed
-func (bb *BB) MotorRight(speed int8) error {
-	// TODO: check status
-	return bb.bus.WriteByteToReg(bb.address, register(ModuleMotor)+moduleMotorRight,
-		byte(int(speed)+MaxMotorSpeed))
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
