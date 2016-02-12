@@ -68,8 +68,8 @@ volatile byte i2cRegister = 0xff; // register to read from / write to
 
 void attachMotors(boolean attach) {
   if (attach) {
-    left.attach(PinMotorLeft);
-    right.attach(PinMotorRight);
+    left.attach(PinMotorLeft, 1000, 2000);
+    right.attach(PinMotorRight, 1000, 2000);
   } else {
     left.detach();
     right.detach();

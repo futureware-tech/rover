@@ -30,6 +30,8 @@ func main() {
 		return
 	}
 
+	bus.Log = func(string, ...interface{}) {}
+
 	board := bb.NewBB(bus, bb.Address)
 	_ = board.Wake()
 
@@ -49,42 +51,72 @@ func main() {
 	}
 
 	mco := mc.NewMC(bus, mc.Address)
+	_ = mco.Wake()
 
-	fmt.Println("Encoders:")
+	fmt.Println("Encoders (LF LB RF RB):")
 	fmt.Println(mco.ReadEncoder(mc.EncoderLeftFront))
 	fmt.Println(mco.ReadEncoder(mc.EncoderLeftBack))
 	fmt.Println(mco.ReadEncoder(mc.EncoderRightFront))
 	fmt.Println(mco.ReadEncoder(mc.EncoderRightBack))
 
-	_ = mco.Right(mc.MaxSpeed / 2)
-	time.Sleep(300 * time.Millisecond)
-	_ = mco.Right(0)
-	time.Sleep(time.Second)
-	_ = mco.Left(mc.MaxSpeed / 2)
+	/*_ = mco.Left(mc.MaxSpeed / 2)
 	time.Sleep(300 * time.Millisecond)
 	_ = mco.Left(0)
+	time.Sleep(time.Second)*/
+	/*_ = mco.Right(-mc.MaxSpeed / 2)
+	time.Sleep(300 * time.Millisecond)
+	_ = mco.Right(0)*/
+	time.Sleep(time.Second)
 
-	fmt.Println("Encoders (after move):")
+	fmt.Println("Encoders (LF LB RF RB) (after move: LEFT FWD, RIGHT REV):")
 	fmt.Println(mco.ReadEncoder(mc.EncoderLeftFront))
 	fmt.Println(mco.ReadEncoder(mc.EncoderLeftBack))
 	fmt.Println(mco.ReadEncoder(mc.EncoderRightFront))
 	fmt.Println(mco.ReadEncoder(mc.EncoderRightBack))
 
-	_ = board.ArmBasePan(0)
-	_ = board.ArmBaseTilt(45)
-	_ = board.ArmElbow(125)
-	_ = board.ArmWristRotate(0)
-	time.Sleep(time.Second)
+	/*_ = mco.Right(mc.MaxSpeed / 2)
+	time.Sleep(300 * time.Millisecond)
+	_ = mco.Right(0)
+	time.Sleep(time.Second)*/
+	/*_ = mco.Left(-mc.MaxSpeed / 2)
+	time.Sleep(300 * time.Millisecond)
+	_ = mco.Left(0)*/
+
+	fmt.Println("Encoders (LF LB RF RB) (after move: LEFT REV, RIGHT FWD):")
+	fmt.Println(mco.ReadEncoder(mc.EncoderLeftFront))
+	fmt.Println(mco.ReadEncoder(mc.EncoderLeftBack))
+	fmt.Println(mco.ReadEncoder(mc.EncoderRightFront))
+	fmt.Println(mco.ReadEncoder(mc.EncoderRightBack))
+
 	_ = board.ArmWristRotate(90)
-	_ = board.ArmWristTilt(90)
 	_ = board.ArmGrip(0)
 	time.Sleep(time.Second)
-	_ = board.ArmWristTilt(45)
-	_ = board.ArmGrip(180)
-	_ = board.ArmElbow(90)
-	_ = board.ArmBaseTilt(90)
-	_ = board.ArmBasePan(90)
-	time.Sleep(time.Second)
+	for i := 0; i < 1; i++ {
+		_ = board.ArmBaseTilt(90)
+		_ = board.ArmElbow(90)
+		_ = board.ArmBasePan(45)
+		time.Sleep(time.Second)
+
+		_ = board.ArmBaseTilt(45)
+		_ = board.ArmElbow(90)
+		_ = board.ArmWristTilt(45)
+		time.Sleep(time.Second)
+
+		_ = board.ArmGrip(120)
+		time.Sleep(time.Second)
+
+		_ = board.ArmBaseTilt(90)
+		_ = board.ArmElbow(90)
+		time.Sleep(time.Second)
+
+		_ = board.ArmBasePan(135)
+		time.Sleep(time.Second)
+
+		_ = board.ArmBaseTilt(45)
+		_ = board.ArmElbow(90)
+		_ = board.ArmWristTilt(45)
+		_ = board.ArmGrip(0)
+	}
 
 	_ = board.Pan(30)
 	_ = board.Tilt(45)
@@ -126,6 +158,6 @@ func main() {
 	// Put devices in low power consumption mode
 	_ = s.Sleep()
 	_ = b.Sleep()
-	_ = mc.Sleep()
+	_ = mco.Sleep()
 	_ = board.Sleep()
 }
