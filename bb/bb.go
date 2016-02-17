@@ -16,8 +16,11 @@ const Address = C.I2CAddress
 // ResetPin is a Raspberry Pi pin that is connected to the Arduino Reset pin
 const ResetPin = 4
 
-// MaxTilt is a maximum allowed value for tilt (degrees)
-const MaxTilt = C.MaxTilt
+// Min/Max allowed value for tilt (degrees)
+const (
+	MinTilt = C.MinTilt
+	MaxTilt = C.MaxTilt
+)
 
 // StatusError is returned when the status returned by BB is not compatible with the command
 type StatusError struct {
@@ -142,21 +145,13 @@ func (bb *BB) GetTemperatureAndHumidity() (t byte, h byte, e error) {
 
 // Pan & Tilt installed on the robot, normally has LIDAR attached
 const (
-	ModulePanTilt     = C.ModulePanTilt
-	modulePanTiltPan  = C.ModulePanTiltPan
-	modulePanTiltTilt = C.ModulePanTiltTilt
+	ModuleTilt = C.ModuleTilt
 )
 
-// Pan the LIDAR (or anything else attached to Pan/Tilt) for angle degrees (0-180)
-func (bb *BB) Pan(angle byte) error {
-	// TODO: check status
-	return bb.bus.WriteByteToReg(bb.address, register(ModulePanTilt)+modulePanTiltPan, angle)
-}
-
-// Tilt the LIDAR (or anything else attached to Pan/Tilt) for angle degrees (0-MaxTilt)
+// Tilt the LIDAR (or anything else attached to Tilt) for angle degrees (MinTilt-MaxTilt)
 func (bb *BB) Tilt(angle byte) error {
 	// TODO: check status
-	return bb.bus.WriteByteToReg(bb.address, register(ModulePanTilt)+modulePanTiltTilt, angle)
+	return bb.bus.WriteByteToReg(bb.address, register(ModuleTilt), angle)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

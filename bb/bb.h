@@ -8,7 +8,8 @@
  */
 
 enum {
-  MaxTilt = 124,
+  MinTilt = 30,
+  MaxTilt = 150,
   I2CAddress = 0x42,
 };
 
@@ -28,7 +29,7 @@ enum {
   ModuleBoard,
   ModuleLightSensor,
   ModuleArm,
-  ModulePanTilt,
+  ModuleTilt,
   ModuleEnvironmentSensor,
   ModuleSpeech,
 };
@@ -53,10 +54,4 @@ enum {
   ModuleArmWristRotate,
   ModuleArmWristTilt,
   ModuleArmGrip,
-};
-
-// Additions for PanTilt register
-enum {
-  ModulePanTiltPan,
-  ModulePanTiltTilt,
 };

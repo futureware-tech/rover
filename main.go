@@ -22,6 +22,12 @@ func ledCircle(b *bpi.BrightPI, circles int) {
 	}
 }
 
+func park(b *bb.BB) {
+	_ = b.ArmBasePan(90)
+	_ = b.ArmBaseTilt(160)
+	_ = b.ArmElbow(150)
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
 	bus, err := i2c.NewBus(1)
@@ -39,11 +45,13 @@ func main() {
 		fmt.Printf("Status bits: %.16b\n", s)
 	}
 
-	if p, e := board.GetBatteryPercentage(); e != nil {
-		board.Reset(bb.ResetPin)
+	for i := 0; i < 10; i++ {
+		if p, e := board.GetBatteryPercentage(); e != nil {
+			board.Reset(bb.ResetPin)
+		} else {
+			fmt.Println("Battery status (estimated):", p, "%")
+		}
 		time.Sleep(time.Second)
-	} else {
-		fmt.Println("Battery status (estimated):", p, "%")
 	}
 
 	if l, e := board.GetAmbientLight(); e == nil {
@@ -59,13 +67,13 @@ func main() {
 	fmt.Println(mco.ReadEncoder(mc.EncoderRightFront))
 	fmt.Println(mco.ReadEncoder(mc.EncoderRightBack))
 
-	/*_ = mco.Left(mc.MaxSpeed / 2)
+	_ = mco.Left(mc.MaxSpeed / 2)
 	time.Sleep(300 * time.Millisecond)
 	_ = mco.Left(0)
-	time.Sleep(time.Second)*/
-	/*_ = mco.Right(-mc.MaxSpeed / 2)
+	time.Sleep(time.Second)
+	_ = mco.Right(-mc.MaxSpeed / 2)
 	time.Sleep(300 * time.Millisecond)
-	_ = mco.Right(0)*/
+	_ = mco.Right(0)
 	time.Sleep(time.Second)
 
 	fmt.Println("Encoders (LF LB RF RB) (after move: LEFT FWD, RIGHT REV):")
@@ -74,13 +82,13 @@ func main() {
 	fmt.Println(mco.ReadEncoder(mc.EncoderRightFront))
 	fmt.Println(mco.ReadEncoder(mc.EncoderRightBack))
 
-	/*_ = mco.Right(mc.MaxSpeed / 2)
+	_ = mco.Right(mc.MaxSpeed / 2)
 	time.Sleep(300 * time.Millisecond)
 	_ = mco.Right(0)
-	time.Sleep(time.Second)*/
-	/*_ = mco.Left(-mc.MaxSpeed / 2)
+	time.Sleep(time.Second)
+	_ = mco.Left(-mc.MaxSpeed / 2)
 	time.Sleep(300 * time.Millisecond)
-	_ = mco.Left(0)*/
+	_ = mco.Left(0)
 
 	fmt.Println("Encoders (LF LB RF RB) (after move: LEFT REV, RIGHT FWD):")
 	fmt.Println(mco.ReadEncoder(mc.EncoderLeftFront))
@@ -91,11 +99,15 @@ func main() {
 	_ = board.ArmWristRotate(90)
 	_ = board.ArmGrip(0)
 	time.Sleep(time.Second)
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 3; i++ {
 		_ = board.ArmBaseTilt(90)
 		_ = board.ArmElbow(90)
 		_ = board.ArmBasePan(45)
 		time.Sleep(time.Second)
+
+		_ = board.Tilt(45)
+		time.Sleep(time.Second)
+		_ = board.Tilt(90)
 
 		_ = board.ArmBaseTilt(45)
 		_ = board.ArmElbow(90)
@@ -109,7 +121,7 @@ func main() {
 		_ = board.ArmElbow(90)
 		time.Sleep(time.Second)
 
-		_ = board.ArmBasePan(135)
+		_ = board.ArmBasePan(90)
 		time.Sleep(time.Second)
 
 		_ = board.ArmBaseTilt(45)
@@ -117,12 +129,6 @@ func main() {
 		_ = board.ArmWristTilt(45)
 		_ = board.ArmGrip(0)
 	}
-
-	_ = board.Pan(30)
-	_ = board.Tilt(45)
-	time.Sleep(time.Second)
-	_ = board.Pan(90)
-	_ = board.Tilt(0)
 
 	if t, h, e := board.GetTemperatureAndHumidity(); e == nil {
 		fmt.Println("Temperature", t, "*C, humidity", h, "%")
@@ -153,6 +159,8 @@ func main() {
 		fmt.Printf("LIDAR-Lite v2 \"Blue Label\" hw%dsw%d\n", hw, sw)
 	}
 
+	time.Sleep(time.Second)
+	park(board)
 	time.Sleep(time.Second)
 
 	// Put devices in low power consumption mode

@@ -25,8 +25,8 @@ enum {
   PinArmWristRotate = 9, // C LED enabled by jumper, C button, PWM
   PinArmWristTilt = 10,  // PWM
   PinArmGrip = 11,       // PWM
-  PinPanTiltTilt = 12,
-  PinPanTiltPan = 13,    // "L" LED
+  PinTilt = 12,
+  PinAwakeLed = 13,      // "L" LED
 };
 
 enum {
@@ -36,7 +36,7 @@ enum {
   AnalogPinI2CSCL = 5, // i2c enabled by jumper (green wire)
 };
 
-Servo PanTiltPan, PanTiltTilt,
+Servo Tilt,
       ArmBasePan, ArmBaseTilt,
       ArmElbow, ArmGrip,
       ArmWristRotate, ArmWristTilt;
@@ -79,16 +79,14 @@ void attachArm(boolean attach) {
   }
 }
 
-void attachPanTilt(boolean attach) {
+void attachTilt(boolean attach) {
   if (attach) {
-    PanTiltPan.attach(PinPanTiltPan);
-    PanTiltTilt.attach(PinPanTiltTilt);
-    MODULE_READY(PanTilt);
+    Tilt.attach(PinTilt);
+    MODULE_READY(Tilt);
   } else {
     // do not "return" if not ready, because we can detach at any moment
-    MODULE_BUSY(PanTilt,);
-    PanTiltPan.detach();
-    PanTiltTilt.detach();
+    MODULE_BUSY(Tilt,);
+    Tilt.detach();
   }
 }
 
@@ -103,7 +101,7 @@ void setup() {
   // not: READY(EnvironmentSensor);
   // (do not make it ready until the first measurement)
 
-  attachPanTilt(true);
+  attachTilt(true);
   attachArm(true);
 
   MODULE_READY(LightSensor);
@@ -129,10 +127,10 @@ void boardCommand(byte value) {
     break;
   case CommandSleep:
     attachArm(false);
-    attachPanTilt(false);
+    attachTilt(false);
     break;
   case CommandWake:
-    attachPanTilt(true);
+    attachTilt(true);
     attachArm(true);
     break;
   }
@@ -149,14 +147,15 @@ void i2cReceive(int count) {
   case MODULE_REGISTER(Command):
     boardCommand(value8);
     break;
+  case MODULE_REGISTER(Tilt):
+    Tilt.write(constrain(value8, MinTilt, MaxTilt));
+    break;
 
 #define SERVO_CASE_WITH_ADDITION(module, addition, value) \
   case MODULE_REGISTER(module) + Module ## module ## addition: \
     module ## addition.write(value); \
     break;
 
-  SERVO_CASE_WITH_ADDITION(PanTilt, Pan, value8)
-  SERVO_CASE_WITH_ADDITION(PanTilt, Tilt, constrain(value8, 0, MaxTilt))
   SERVO_CASE_WITH_ADDITION(Arm, BasePan, value8)
   SERVO_CASE_WITH_ADDITION(Arm, BaseTilt, value8)
   SERVO_CASE_WITH_ADDITION(Arm, Elbow, value8)
@@ -178,10 +177,10 @@ void i2cRequest() {
     writeWord(status);
     break;
   case MODULE_REGISTER(Board) + ModuleBoardBattery:
-    // centiV = analog * 1.7581
-    // Range = 10.6V .. 12.6V
     value = analogRead(AnalogPinBattery);
-    Wire.write((byte)(value * 1.7581 / 2));
+    Wire.write((byte)(constrain(map(value,
+                                    (2.0 / 5.0 * 1023.0), (3.5 / 5.0 * 1023.0),
+                                    0, 100), 0, 100)));
     break;
   case MODULE_REGISTER(LightSensor):
     value = analogRead(AnalogPinLightSensor);
