@@ -6,6 +6,7 @@
 http_headers='HTTP/1.1 200 OK
 Server: Rover (socat-based)
 Content-Type: video/H264
+
 '
 exec socat TCP-LISTEN:"${1?listen port}",reuseaddr,fork \
-	EXEC:"$(cd $(dirname $0); pwd)/capture '$http_headers'"
+	EXEC:"$(cd "$(dirname "$0")" || exit; pwd)/capture -d '\"$http_headers\"'"

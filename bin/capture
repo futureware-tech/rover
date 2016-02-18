@@ -7,7 +7,7 @@ set -e
 width=640
 height=480
 framerate=25
-while getopts "w:h:r:" opt; do
+while getopts "w:h:r:d:" opt; do
 	case $opt in
 		w)
 			width=$OPTARG
@@ -18,16 +18,19 @@ while getopts "w:h:r:" opt; do
 		r)
 			framerate=$OPTARG
 			;;
+		d)
+			headers=$OPTARG
+			;;
 	esac
 done
 
-# First, print header (if present)
-echo -n "$1"
+# First, print headers (if present)
+echo -n "$headers"
 exec raspivid \
 	--timeout 0 \
 	--nopreview \
 	--vstab \
-	--width $width --height $height \
-	--framerate $fps \
+	--width "$width" --height "$height" \
+	--framerate "$framerate" \
 	--vflip --hflip \
 	-o -

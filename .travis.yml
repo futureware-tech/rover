@@ -2,16 +2,20 @@ language: go
 
 go:
     - 1.5
-    - tip
+    # Temporarily disable until Travis CI is fast again
+    #- tip
 
 cache:
     directories:
-        - "~/.platformio"
+        - ~/.platformio
+        - ~/.shellcheck
 
 addons:
     apt:
         packages:
         - libi2c-dev
+        # shellcheck is not in Travis' Ubuntu
+        #- shellcheck
 
 install:
     # Rapsberry Pi part
@@ -23,6 +27,9 @@ install:
     # BotBoarduino part
     - pip install --user --upgrade platformio
     - platformio lib install 19 580 # Adafruit-DHT, EasyVR
+    - mkdir -p ~/.shellcheck
+    - curl -Lso ~/.shellcheck/shellcheck https://github.com/caarlos0/shellcheck-docker/releases/download/v0.4.3/shellcheck
+    - chmod +x ~/.shellcheck/shellcheck
 
 script:
     # Raspberry Pi part
@@ -31,6 +38,10 @@ script:
     - goveralls -v -service=travis-ci ./...
     # BotBoarduino part
     - platformio ci --board=diecimilaatmega328 bb
+    # MotorController part
+    - platformio ci --board=diecimilaatmega328 mc
+    # Shell part
+    - ~/.shellcheck/shellcheck bin/*
 
 branches:
     only:

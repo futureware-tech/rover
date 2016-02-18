@@ -13,13 +13,13 @@ run_with_timeout() {
 	shift
 	"$@" &
 	pid=$!
-	sleep $timeout &>/dev/null &
-	wait -n $pid $!
-	kill $! 2>/dev/null || true
-	if kill -s SIGTERM $pid 2>/dev/null; then
+	sleep "$timeout" &>/dev/null &
+	wait -n "$pid" "$!"
+	kill "$!" 2>/dev/null || true
+	if kill -s SIGTERM "$pid" 2>/dev/null; then
 		sleep 1
-		kill -s SIGKILL $pid 2>/dev/null || true
-		echo "$@" took over $timeout to complete and has been killed
+		kill -s SIGKILL "$pid" 2>/dev/null || true
+		echo "$@" took over "$timeout" to complete and has been killed
 		return 1
 	else
 		return 0
@@ -29,7 +29,7 @@ run_with_timeout() {
 # SIM800 support functions
 ################################################################################
 
-: ${PON_PEER?required}
+: "${PON_PEER?}"
 
 # Itead SIM800 stackable:
 # http://wiki.iteadstudio.com/RPI_SIM800_GSM/GPRS_ADD-ON_V2.0
@@ -38,7 +38,7 @@ SYS_GPIO=/sys/class/gpio
 
 # Set GPIO PIN to OUTPUT, write 1, wait 2s, write 0, set PIN to INPUT
 push_button() {
-	echo ${1?No GPIO PIN specified} >"$SYS_GPIO/export" 2>/dev/null || true
+	echo "${1?No GPIO PIN specified}" >"$SYS_GPIO/export" 2>/dev/null || true
 	sleep 0.2 # give udev a chance to fix permissions
 
 	pin="$SYS_GPIO/gpio${1}"
@@ -47,7 +47,7 @@ push_button() {
 	sleep 2
 	echo 0 >"$pin/value"
 	echo in >"$pin/direction"
-	echo $1 >"$SYS_GPIO/unexport"
+	echo "$1" >"$SYS_GPIO/unexport"
 }
 
 # Reset Itead SIM800 stackable. Only works when power is on.
@@ -72,8 +72,8 @@ power_toggle_sim800() {
 }
 
 disconnect_sim800() {
-	echo disconnecting sim800 at $PON_PEER
-	poff $PON_PEER || true
+	echo disconnecting sim800 at "$PON_PEER"
+	poff "$PON_PEER" || true
 }
 
 # try to (re)connect sim800
@@ -83,31 +83,31 @@ connect_sim800() {
 	power_toggle_sim800
 	# give sim800 a chance to register on the network
 	sleep 30
-	echo connecting sim800 on $PON_PEER
-	run_with_timeout 10 pon $PON_PEER || true
+	echo connecting sim800 on "$PON_PEER"
+	run_with_timeout 10 pon "$PON_PEER" || true
 }
 
 # WLAN functions
 ################################################################################
 
-: ${WLAN_IFACE?required}
+: "${WLAN_IFACE?}"
 
 disconnect_wlan() {
-	echo disconnecting wlan on $WLAN_IFACE
-	sudo ifdown $WLAN_IFACE || true
+	echo disconnecting wlan on "$WLAN_IFACE"
+	sudo ifdown "$WLAN_IFACE" || true
 }
 
 # try to (re)connect wlan
 connect_wlan() {
 	disconnect_wlan
-	echo connecting wlan on $WLAN_IFACE
-	sudo ifup $WLAN_IFACE || true
+	echo connecting wlan on "$WLAN_IFACE"
+	sudo ifup "$WLAN_IFACE" || true
 }
 
 # Main program
 ################################################################################
 
-: ${REMOTE_HOST?required}
+: "${REMOTE_HOST?}"
 
 failures_in_a_row=0
 
@@ -115,12 +115,13 @@ failures_in_a_row=0
 is_connected() {
 	local retries=5
 	for i in $(seq 1 $retries); do
-		if run_with_timeout 10 ssh ${REMOTE_HOST} echo success | grep -q success; then
+		if run_with_timeout 10 ssh "${REMOTE_HOST}" echo success |
+			grep -q success; then
 			failures_in_a_row=0
 			return 0
 		fi
 		let 'failures_in_a_row++'
-		echo ssh failed, try $i
+		echo ssh failed, try "$i"
 		sleep 2
 	done
 	echo ssh did not succeed after $retries attempts

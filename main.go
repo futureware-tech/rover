@@ -108,7 +108,7 @@ func httpStatus(w http.ResponseWriter, r *http.Request) {
 	if d, e := meter.GetDistance(); e != nil {
 		fmt.Fprintln(w, e)
 	} else {
-		fmt.Fprintln(w, d, "meters")
+		fmt.Fprintln(w, d, "cm")
 	}
 }
 
