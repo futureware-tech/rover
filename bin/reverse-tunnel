@@ -1,13 +1,15 @@
 #!/bin/sh
 
 while :; do
+	# https://github.com/koalaman/shellcheck/issues/327
+	# shellcheck disable=SC2029
 	ssh -vvv \
 		-o 'ExitOnForwardFailure yes' \
 		-o 'ServerAliveInterval 30' \
 		-o 'ConnectTimeout 5' \
 		-o 'BatchMode yes' \
 		-N -R \
-		${REMOTE_INTERFACE-127.0.0.1}:${REMOTE_PORT?}:localhost:${LOCAL_PORT-22} \
-		${REMOTE_HOST?}
+		"${REMOTE_INTERFACE-127.0.0.1}:${REMOTE_PORT?}:localhost:${LOCAL_PORT-22}" \
+		"${REMOTE_HOST?}"
 	sleep 1
 done

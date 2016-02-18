@@ -17,6 +17,10 @@
 
 [Raspbian](https://www.raspbian.org/)
 
+## save SD space and package installation time
+
+See [Reducing Disk Footprint](https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
+
 ## `/boot/config.txt`
 
 * ~~Drop GPU mem allocation to 16MB: `gpu_mem=16`~~ enabling camera requires at least 128MB GPU

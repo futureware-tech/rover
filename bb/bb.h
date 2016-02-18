@@ -1,21 +1,25 @@
+/* A header file shared between C (.ino) software and Go interface
+ * for BotBoarduino controller, which takes care of a few parts of
+ * the Rover project. Notably, time-critical pulses (which are
+ * required control servos and read DHT data) and analog reads
+ * (ambient light sensor and battery).
+ * More info about the board peripherals may be found in C (.ino)
+ * file.
+ */
+
 enum {
-  MaxTilt = 124,
+  MinTilt = 30,
+  MaxTilt = 150,
   I2CAddress = 0x42,
 };
 
 enum {
-  // Stop all movement
-  CommandHalt,
   // Invoke environment sensor
   CommandMeasureEnvironment,
-  // Detach from all servos / motors (release, low power mode)
+  // Detach from all servos (release, low power mode)
   CommandSleep,
-  // Re-attach servos / motors
+  // Re-attach servos
   CommandWake,
-  // Use encoder statuses to detect movement and block it with motors
-  CommandBrake,
-  // Release the brake mode
-  CommandReleaseBrake,
 };
 
 enum {
@@ -23,22 +27,11 @@ enum {
   ModuleCommand,
   // Board "readiness" bits (bit numbers are module IDs)
   ModuleBoard,
-  ModuleMotor,
   ModuleLightSensor,
   ModuleArm,
-  ModulePanTilt,
+  ModuleTilt,
   ModuleEnvironmentSensor,
   ModuleSpeech,
-};
-
-// Additions for Motor register
-enum {
-  ModuleMotorLeft,
-  ModuleMotorRight,
-  ModuleMotorEncoderLeftFront,
-  ModuleMotorEncoderLeftBack,
-  ModuleMotorEncoderRightFront,
-  ModuleMotorEncoderRightBack,
 };
 
 // Additions for EnvironmentSensor register
@@ -61,10 +54,4 @@ enum {
   ModuleArmWristRotate,
   ModuleArmWristTilt,
   ModuleArmGrip,
-};
-
-// Additions for PanTilt register
-enum {
-  ModulePanTiltPan,
-  ModulePanTiltTilt,
 };
