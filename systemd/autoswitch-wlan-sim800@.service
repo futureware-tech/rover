@@ -1,0 +1,11 @@
+[Unit]
+Description=Switch between various connectivity options when the Internet connection is dead
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/pi/rover/bin/autoswitch-wlan-sim800 %i
+RestartSec=1
+Restart=always
+StartLimitInterval=0
+StartLimitAction=reboot-force

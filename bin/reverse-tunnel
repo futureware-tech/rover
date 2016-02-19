@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Reverse port-forwarding (using ssh for now).
+# systemd is supposed to take care of restarting this on failure.
 
 set -e
 
@@ -22,16 +23,13 @@ LOCAL_PORT="${LOCAL_PORT:-${REMOTE_PORT}}"
 [ "${REMOTE_PORT?}" -lt 1024 ] &&
 	let 'REMOTE_PORT=REMOTE_PORT+31416'
 
-while :; do
-	# https://github.com/koalaman/shellcheck/issues/327
-	# shellcheck disable=SC2029
-	ssh -vvv \
-		-o 'ExitOnForwardFailure yes' \
-		-o 'ServerAliveInterval 30' \
-		-o 'ConnectTimeout 5' \
-		-o 'BatchMode yes' \
-		-N -R \
-		"${REMOTE_INTERFACE?}:${REMOTE_PORT?}:localhost:${LOCAL_PORT?}" \
-		"${SSH_TARGET?}"
-	sleep 1
-done
+# https://github.com/koalaman/shellcheck/issues/327
+# shellcheck disable=SC2029
+exec ssh -vvv \
+	-o 'ExitOnForwardFailure yes' \
+	-o 'ServerAliveInterval 30' \
+	-o 'ConnectTimeout 5' \
+	-o 'BatchMode yes' \
+	-N -R \
+	"${REMOTE_INTERFACE?}:${REMOTE_PORT?}:localhost:${LOCAL_PORT?}" \
+	"${SSH_TARGET?}"

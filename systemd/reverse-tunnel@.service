@@ -1,0 +1,12 @@
+[Unit]
+Description=Reverse tunnel for port forwarding to Raspberry Pi rover
+After=network-online.target
+
+[Service]
+User=pi
+Type=simple
+ExecStart=/home/pi/rover/bin/reverse-tunnel %i
+RestartSec=1
+Restart=always
+StartLimitInterval=0
+StartLimitAction=reboot-force

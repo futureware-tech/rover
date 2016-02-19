@@ -29,7 +29,7 @@ run_with_timeout() {
 # SIM800 support functions
 ################################################################################
 
-: "${PON_PEER?}"
+PON_PEER="${1?pon peer not specified}"
 
 # Itead SIM800 stackable:
 # http://wiki.iteadstudio.com/RPI_SIM800_GSM/GPRS_ADD-ON_V2.0
@@ -133,8 +133,6 @@ wait_for_disconnect() {
 		sleep 20
 	done
 }
-
-echo started
 
 wait_for_disconnect
 echo first disconnect, starting recovery procedures
