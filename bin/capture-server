@@ -8,5 +8,5 @@ Server: Rover (socat-based)
 Content-Type: video/H264
 
 '
-exec socat TCP-LISTEN:"${1?listen port}",reuseaddr,fork \
-	EXEC:"$(cd "$(dirname "$0")" || exit; pwd)/capture -d '\"$http_headers\"'"
+exec socat TCP-LISTEN:"${1?listen port required}",reuseaddr,fork \
+	EXEC:"$(cd "$(dirname "$0")" || exit; pwd)/capture '$http_headers'"
