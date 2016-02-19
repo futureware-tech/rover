@@ -90,7 +90,7 @@ connect_sim800() {
 # WLAN functions
 ################################################################################
 
-: "${WLAN_IFACE?}"
+WLAN_IFACE="${WLAN_IFACE:-wlan0}"
 
 disconnect_wlan() {
 	echo disconnecting wlan on "$WLAN_IFACE"
@@ -107,7 +107,8 @@ connect_wlan() {
 # Main program
 ################################################################################
 
-: "${REMOTE_HOST?}"
+REMOTE_HOST="${REMOTE_HOST:-google.com}"
+REMOTE_PORT="${REMOTE_PORT:-443}"
 
 failures_in_a_row=0
 
@@ -115,8 +116,7 @@ failures_in_a_row=0
 is_connected() {
 	local retries=5
 	for i in $(seq 1 $retries); do
-		if run_with_timeout 10 ssh "${REMOTE_HOST}" echo success |
-			grep -q success; then
+		if nc -w 10 -z "$REMOTE_HOST" "$REMOTE_PORT"; then
 			failures_in_a_row=0
 			return 0
 		fi
