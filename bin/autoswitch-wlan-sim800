@@ -94,14 +94,14 @@ WLAN_IFACE="${WLAN_IFACE:-wlan0}"
 
 disconnect_wlan() {
 	echo disconnecting wlan on "$WLAN_IFACE"
-	sudo ifdown "$WLAN_IFACE" || true
+	ifdown "$WLAN_IFACE" || true
 }
 
 # try to (re)connect wlan
 connect_wlan() {
 	disconnect_wlan
 	echo connecting wlan on "$WLAN_IFACE"
-	sudo ifup "$WLAN_IFACE" || true
+	ifup "$WLAN_IFACE" || true
 }
 
 # Main program
@@ -148,6 +148,6 @@ while :; do
 	done
 	if [ $failures_in_a_row -gt 30 ]; then
 		echo $failures_in_a_row failures in a row, rebooting
-		sudo reboot || true
+		reboot
 	fi
 done
