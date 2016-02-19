@@ -3,6 +3,8 @@ Description=Raspberry Pi camera streaming server
 After=network-online.target
 
 [Service]
+# Set CAPTURE_PASSWORD in this file
+EnvironmentFile=/home/pi/.secrets
 Type=simple
 ExecStart=/home/pi/rover/bin/capture-server %i
 RestartSec=1

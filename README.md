@@ -37,11 +37,13 @@ See [Reducing Disk Footprint](https://wiki.ubuntu.com/ReducingDiskFootprint#Docu
 
 * Do not use UART as console: `systemctl disable serial-getty@ttyAMA0.service`
 * Add services:
-    - reverse tunnel for ssh: `reverse-tunnel@<remote_host>:22.service`
+    - reverse tunnel for ssh: `reverse-tunnel@<remote_host>:22.service`.
       Make sure `ssh <remote_host>` works (doesn't ask for host key / password)
-    - autoswitch sim800 and wlan0: `autoswitch-wlan-sim800@<isp>.service`
-    - camera streaming server: `capture-server@<port>.service`
-    - camera streaming forwarding: `reverse-tunnel@<remote_host>:<port>.service`
+    - autoswitch sim800 and wlan0: `autoswitch-wlan-sim800@<isp>.service`.
+    - camera streaming server: `capture-server@<port>.service`.
+      Don't forget to set `CAMERA_PASSWORD` in `$HOME/.secrets` file.
+    - camera streaming forwarding:
+      `reverse-tunnel@<remote_host>:<port>+.service`
 
 
 ## `/etc/fstab`

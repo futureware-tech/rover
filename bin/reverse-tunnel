@@ -5,7 +5,7 @@
 
 set -e
 
-: ${1?remote side in form host:port or user@host:port required}
+: "${1?remote side in form host:port or user@host:port required}"
 
 REMOTE_PORT="${1##*:}"
 SSH_TARGET="${1%:*}"
