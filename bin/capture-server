@@ -9,4 +9,4 @@ Content-Type: video/H264
 
 '
 exec socat TCP-LISTEN:"${1?listen port}",reuseaddr,fork \
-	EXEC:"$(cd "$(dirname "$0")" || exit; pwd)/capture -d '\"$http_headers\"'"
+	EXEC:"$(cd "$(dirname "$0")" || exit; pwd)/capture '$http_headers'"

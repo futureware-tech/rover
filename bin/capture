@@ -2,35 +2,15 @@
 
 # A script to start capturing video from Raspberry Pi camera and
 # output it to stdout.
-set -e
-
-width=640
-height=480
-framerate=25
-while getopts "w:h:r:d:" opt; do
-	case $opt in
-		w)
-			width=$OPTARG
-			;;
-		h)
-			height=$OPTARG
-			;;
-		r)
-			framerate=$OPTARG
-			;;
-		d)
-			headers=$OPTARG
-			;;
-	esac
-done
 
 # First, print headers (if present)
-echo -n "$headers"
+echo -n "$*"
 exec raspivid \
 	--timeout 0 \
 	--nopreview \
 	--vstab \
-	--width "$width" --height "$height" \
-	--framerate "$framerate" \
+	--width "${CAPTURE_WIDTH:-640}" \
+	--height "${CAPTURE_HEIGHT:-480}" \
+	--framerate "${CAPTURE_FPS:-25}" \
 	--vflip --hflip \
 	-o -
