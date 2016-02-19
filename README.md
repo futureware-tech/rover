@@ -108,3 +108,11 @@ updetach
 #nodeflate
 #noaccomp
 ```
+
+## sshd
+
+It might be useful to add `PasswordAuthentication no` to your
+`/etc/ssh/sshd_config` if logging in to Pi with a key.
+
+Removing password from `pi` user might make debugging network problems
+(by plugging in a keyboard) a bit harder.
