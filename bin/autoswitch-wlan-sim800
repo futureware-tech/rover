@@ -29,7 +29,7 @@ run_with_timeout() {
 # SIM800 support functions
 ################################################################################
 
-: "${PON_PEER?}"
+PON_PEER="${1?pon peer not specified}"
 
 # Itead SIM800 stackable:
 # http://wiki.iteadstudio.com/RPI_SIM800_GSM/GPRS_ADD-ON_V2.0
@@ -94,14 +94,14 @@ WLAN_IFACE="${WLAN_IFACE:-wlan0}"
 
 disconnect_wlan() {
 	echo disconnecting wlan on "$WLAN_IFACE"
-	sudo ifdown "$WLAN_IFACE" || true
+	ifdown "$WLAN_IFACE" || true
 }
 
 # try to (re)connect wlan
 connect_wlan() {
 	disconnect_wlan
 	echo connecting wlan on "$WLAN_IFACE"
-	sudo ifup "$WLAN_IFACE" || true
+	ifup "$WLAN_IFACE" || true
 }
 
 # Main program
@@ -134,8 +134,6 @@ wait_for_disconnect() {
 	done
 }
 
-echo started
-
 wait_for_disconnect
 echo first disconnect, starting recovery procedures
 while :; do
@@ -148,6 +146,6 @@ while :; do
 	done
 	if [ $failures_in_a_row -gt 30 ]; then
 		echo $failures_in_a_row failures in a row, rebooting
-		sudo reboot || true
+		reboot
 	fi
 done

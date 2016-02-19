@@ -36,6 +36,15 @@ See [Reducing Disk Footprint](https://wiki.ubuntu.com/ReducingDiskFootprint#Docu
 ## systemd
 
 * Do not use UART as console: `systemctl disable serial-getty@ttyAMA0.service`
+* Add services:
+    - reverse tunnel for ssh: `reverse-tunnel@<remote_host>:22.service`.
+      Make sure `ssh <remote_host>` works (doesn't ask for host key / password)
+    - autoswitch sim800 and wlan0: `autoswitch-wlan-sim800@<isp>.service`.
+    - camera streaming server: `capture-server@<port>.service`.
+      Don't forget to set `CAMERA_PASSWORD` in `$HOME/.secrets` file.
+    - camera streaming forwarding:
+      `reverse-tunnel@<remote_host>:<port>_.service`
+
 
 ## `/etc/fstab`
 
@@ -43,21 +52,13 @@ Mount /tmp as tmpfs (RAM):
 
 `tmpfs /tmp tmpfs defaults,noatime,nosuid,size=50m 0 0`
 
-## $HOME
+## $HOME (/home/pi)
 
 `git clone https://github.com/dasfoo/rover.git`
 
-## crontab
-
-There is a number of ways to run commands at startup, crontab seems most portable:
-
-```
-@reboot sh -c 'REMOTE_PORT=XXXXXX REMOTE_HOST=YYYYYY $HOME/rover/bin/reverse-tunnel 2>&1 | logger -t ssh-reverse-tunnel &'
-@reboot sh -c 'sleep 1m; PON_PEER=XXXXXX REMOTE_HOST=YYYYYY WLAN_IFACE=ZZZZZZ $HOME/rover/bin/autoswitch-wlan-sim800 2>&1 | logger -t autoswitch-wlan-sim800 &'
-@reboot sh -c '$HOME/rover/bin/capture-server XXXXX 2>&1 | logger -t capture-server &'
-```
-
 ## groups
+
+Optional, as systemd runs the script as root now.
 
 `pi` must be a member of `dip` group to call for `pon`/`poff`:
 
@@ -110,7 +111,10 @@ updetach
 #noaccomp
 ```
 
-## ssh
+## sshd
 
-If planning to use `reverse-tunnel` or friends, make sure `ssh $REMOTE_HOST` works (e.g. doesn't
-ask for host key or password).
+It might be useful to add `PasswordAuthentication no` to your
+`/etc/ssh/sshd_config` if logging in to Pi with a key.
+
+Removing password from `pi` user might make debugging network problems
+(by plugging in a keyboard) a bit harder.
