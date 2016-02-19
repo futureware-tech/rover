@@ -10,9 +10,9 @@ set -e
 REMOTE_PORT="${1##*:}"
 SSH_TARGET="${1%:*}"
 REMOTE_INTERFACE=127.0.0.1
-if [ "${REMOTE_PORT?}" != "${REMOTE_PORT%+}" ]; then
+if [ "${REMOTE_PORT?}" != "${REMOTE_PORT%_}" ]; then
 	REMOTE_INTERFACE=0.0.0.0
-	REMOTE_PORT="${REMOTE_PORT%+}"
+	REMOTE_PORT="${REMOTE_PORT%_}"
 fi
 
 LOCAL_PORT="${LOCAL_PORT:-${REMOTE_PORT}}"

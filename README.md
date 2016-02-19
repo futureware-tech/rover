@@ -43,7 +43,7 @@ See [Reducing Disk Footprint](https://wiki.ubuntu.com/ReducingDiskFootprint#Docu
     - camera streaming server: `capture-server@<port>.service`.
       Don't forget to set `CAMERA_PASSWORD` in `$HOME/.secrets` file.
     - camera streaming forwarding:
-      `reverse-tunnel@<remote_host>:<port>+.service`
+      `reverse-tunnel@<remote_host>:<port>_.service`
 
 
 ## `/etc/fstab`
