@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # Reverse port-forwarding (using ssh for now).
 # systemd is supposed to take care of restarting this on failure.
@@ -21,7 +21,7 @@ LOCAL_PORT="${LOCAL_PORT:-${REMOTE_PORT}}"
 # don't have permissions to listen on lower ports. We're adding a magic number
 # since it's a Raspberry Pi project, and Pi ~= 3.1416.
 [ "${REMOTE_PORT?}" -lt 1024 ] &&
-	let 'REMOTE_PORT=REMOTE_PORT+31416'
+	REMOTE_PORT=$((REMOTE_PORT+31416))
 
 # https://github.com/koalaman/shellcheck/issues/327
 # shellcheck disable=SC2029

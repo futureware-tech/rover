@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # A scratch to keep connectivity.
 
@@ -13,7 +13,7 @@ run_with_timeout() {
 	shift
 	"$@" &
 	pid=$!
-	sleep "$timeout" &>/dev/null &
+	sleep "$timeout" &
 	wait -n "$pid" "$!"
 	kill "$!" 2>/dev/null || true
 	if kill -s SIGTERM "$pid" 2>/dev/null; then
@@ -61,7 +61,8 @@ reset_sim800() {
 #   screen /dev/ttyAMA0 115200
 #   AT+CPIN? # ask if PIN is necessary for the SIM card
 #   AT+CSPN? # ask SIM service provider
-#   AT+CREG? # ask network registration status (X,Y; Y is 1: registered, 2: searching)
+#   AT+CREG? # ask network registration status
+#              (returns X,Y; Y is 1: registered, 2: searching)
 # Alternatively SIM800 can be shut down with AT commands:
 #   AT+CPOWD=1 # or =0 for urgent shutdown
 # Note: power cycling or resetting does not restore all factory settings.
@@ -120,7 +121,7 @@ is_connected() {
 			failures_in_a_row=0
 			return 0
 		fi
-		let 'failures_in_a_row++'
+		: $((failures_in_a_row+=1))
 		echo ssh failed, try "$i"
 		sleep 2
 	done

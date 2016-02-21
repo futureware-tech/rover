@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 local_binary="${1?no package name provided}"
 shift
