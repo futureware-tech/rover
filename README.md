@@ -19,11 +19,13 @@
 
 ## save SD space and package installation time
 
-See [Reducing Disk Footprint](https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
+See [Reducing Disk Footprint](
+https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
 
 ## `/boot/config.txt`
 
-* ~~Drop GPU mem allocation to 16MB: `gpu_mem=16`~~ enabling camera requires at least 128MB GPU
+* ~~Drop GPU mem allocation to 16MB: `gpu_mem=16`~~ enabling camera requires at
+  least 128MB GPU
 * Enable i2c: `dtparam=i2c_arm=on`
 * Enable audio: `dtparam=audio=on`
 * Enable camera: `start_x=1`
@@ -31,7 +33,8 @@ See [Reducing Disk Footprint](https://wiki.ubuntu.com/ReducingDiskFootprint#Docu
 
 ## `/boot/cmdline.txt`
 
-* Remove a `console=` reference to `ttyAMA0` (this is a UART interface) to allow normal SIM800 module interactions
+* Remove a `console=` reference to `ttyAMA0` (this is a UART interface) to allow
+  normal SIM800 module interactions
 
 ## systemd
 
@@ -66,7 +69,8 @@ Optional, as systemd runs the script as root now.
 
 ## ppp
 
-Replace `$ISPNAME` with what's your ISP suggests as "endpoint", e.g.: data.umts.example.org
+Replace `$ISPNAME` with what's your ISP suggests as "endpoint", e.g.:
+data.umts.example.org
 
 ```
 $ cat /etc/ppp/peers/$ISPNAME
