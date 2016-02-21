@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # TODO: use arm-linux-gnueabihf-gcc (note the 'hf'), take CGO_CFLAGS flags from
 # $ gcc -mcpu=native -march=native -Q --help=target

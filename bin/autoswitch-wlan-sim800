@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # A scratch to keep connectivity.
 
@@ -9,17 +9,17 @@ set -e
 
 # run_with_timeout <timeout> <command>...
 run_with_timeout() {
-	local timeout=$1 pid
+	run_timeout=$1
 	shift
 	"$@" &
-	pid=$!
-	sleep "$timeout" &>/dev/null &
-	wait -n "$pid" "$!"
+	command_pid=$!
+	sleep "$run_timeout" &
+	wait -n "$command_pid" "$!"
 	kill "$!" 2>/dev/null || true
-	if kill -s SIGTERM "$pid" 2>/dev/null; then
+	if kill -s SIGTERM "$command_pid" 2>/dev/null; then
 		sleep 1
-		kill -s SIGKILL "$pid" 2>/dev/null || true
-		echo "$@" took over "$timeout" to complete and has been killed
+		kill -s SIGKILL "$command_pid" 2>/dev/null || true
+		echo "$@" took over "$run_timeout" to complete and has been killed
 		return 1
 	else
 		return 0
@@ -61,7 +61,8 @@ reset_sim800() {
 #   screen /dev/ttyAMA0 115200
 #   AT+CPIN? # ask if PIN is necessary for the SIM card
 #   AT+CSPN? # ask SIM service provider
-#   AT+CREG? # ask network registration status (X,Y; Y is 1: registered, 2: searching)
+#   AT+CREG? # ask network registration status
+#              (returns X,Y; Y is 1: registered, 2: searching)
 # Alternatively SIM800 can be shut down with AT commands:
 #   AT+CPOWD=1 # or =0 for urgent shutdown
 # Note: power cycling or resetting does not restore all factory settings.
@@ -114,17 +115,17 @@ failures_in_a_row=0
 
 # test that connection is alive (try to ssh a few times)
 is_connected() {
-	local retries=5
-	for i in $(seq 1 $retries); do
+	connect_retries=5
+	for i in $(seq 1 $connect_retries); do
 		if nc -w 10 -z "$REMOTE_HOST" "$REMOTE_PORT"; then
 			failures_in_a_row=0
 			return 0
 		fi
-		let 'failures_in_a_row++'
+		: $((failures_in_a_row+=1))
 		echo ssh failed, try "$i"
 		sleep 2
 	done
-	echo ssh did not succeed after $retries attempts
+	echo ssh did not succeed after $connect_retries attempts
 	return 1
 }
 
