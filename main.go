@@ -158,14 +158,13 @@ func httpMove(w http.ResponseWriter, r *http.Request) {
 
 func httpSleep(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Setting sleep (low power) mode: ")
-	// Putting motors to sleep doesn't seem perfect yet - they may go crazy
+	// Putting motor controller to sleep doesn't seem perfect yet - motors may go crazy
 	changed := sleepAwake(false, board, meter, lights)
 	fmt.Fprintln(w, changed, "changed")
 }
 
 func httpWake(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Setting wake mode: ")
-	// Putting motors to sleep doesn't seem perfect yet - they may go crazy
 	changed := sleepAwake(true, board, meter, motors, lights)
 	fmt.Fprintln(w, changed, "changed")
 }
