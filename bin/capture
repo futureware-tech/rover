@@ -9,12 +9,23 @@ set -e
 
 # First, print headers (if present)
 printf "%s" "$*"
-exec raspivid \
-	--timeout 0 \
-	--nopreview \
-	--vstab \
-	--width "${CAPTURE_WIDTH:-640}" \
-	--height "${CAPTURE_HEIGHT:-480}" \
-	--framerate "${CAPTURE_FPS:-25}" \
-	--vflip --hflip \
-	-o -
+
+if [ -n "${CAPTURE_FPS}" ]; then
+	exec raspivid \
+		--nopreview \
+		--width "${CAPTURE_WIDTH:-640}" \
+		--height "${CAPTURE_HEIGHT:-480}" \
+		--vflip --hflip \
+		--timeout 0 \
+		--framerate "${CAPTURE_FPS}" \
+		--vstab \
+		-o -
+else
+	exec raspistill \
+		--nopreview \
+		--width "${CAPTURE_WIDTH:-2592}" \
+		--height "${CAPTURE_HEIGHT:-1944}" \
+		--vflip --hflip \
+		--quality "${CAPTURE_QUALITY:-80}" \
+		-o -
+fi
