@@ -44,7 +44,7 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
       Make sure `ssh <remote_host>` works (doesn't ask for host key / password)
     - autoswitch sim800 and wlan0: `autoswitch-wlan-sim800@<isp>.service`.
     - camera streaming server: `capture-server@<port>.service`.
-      Don't forget to set `CAMERA_PASSWORD` in `$HOME/.secrets` file.
+      Don't forget to set `CAPTURE_PASSWORD` in `$HOME/.config/capture-server`.
     - camera streaming forwarding:
       `reverse-tunnel@<remote_host>:<port>_.service`
 
