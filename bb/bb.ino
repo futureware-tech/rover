@@ -101,12 +101,9 @@ void setup() {
   // not: READY(EnvironmentSensor);
   // (do not make it ready until the first measurement)
 
-  attachTilt(true);
-  attachArm(true);
-
   MODULE_READY(LightSensor);
 
-  //play(PinSpeaker, melody_HappyBirthday, sizeof(melody_HappyBirthday) >> 2);
+  play(PinSpeaker, melody_HappyBirthday, sizeof(melody_HappyBirthday) >> 2);
 }
 
 void loop() {

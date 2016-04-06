@@ -21,8 +21,8 @@ install:
     # Rapsberry Pi part
     - go get github.com/alecthomas/gometalinter
     - gometalinter --install --update
-    - go get github.com/axw/gocov/gocov
     - go get golang.org/x/tools/cmd/cover
+    - go get github.com/modocache/gover
     - go get github.com/mattn/goveralls
     # BotBoarduino part
     - pip install --user --upgrade platformio
@@ -35,7 +35,9 @@ script:
     # Raspberry Pi part
     - go get -v ./...
     - gometalinter --deadline 1m ./...
-    - goveralls -v -service=travis-ci ./...
+    - go test -race -trace ./...
+    - gover
+    - goveralls -v -coverprofile=gover.coverprofile -service=travis-ci ./...
     # BotBoarduino part
     - platformio ci --board=diecimilaatmega328 bb
     # MotorController part

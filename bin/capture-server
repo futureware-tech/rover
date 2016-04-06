@@ -3,10 +3,13 @@
 # An HTTP server emulator which starts a capture
 # once an incoming connection is established.
 
-http_headers='HTTP/1.1 200 OK
-Server: Rover (socat-based)
-Content-Type: video/H264
+CONTENT_TYPE=image/jpeg
+[ -n "$CAPTURE_FPS" ] && CONTENT_TYPE=video/h264
 
-'
+http_headers="HTTP/1.1 200 OK
+Server: Rover (socat-based)
+Content-Type: $CONTENT_TYPE
+
+"
 exec socat TCP-LISTEN:"${1?listen port required}",reuseaddr,fork \
 	EXEC:"$(cd "$(dirname "$0")" || exit; pwd)/capture '$http_headers'"
