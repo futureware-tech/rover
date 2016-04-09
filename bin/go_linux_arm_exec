@@ -1,15 +1,22 @@
 #!/bin/sh
 
+set -e
+
 local_binary="${1?no package name provided}"
 shift
 
 remote_binary="/tmp/$(basename "$local_binary").$USER"
 
-echo "Copying $remote_binary..."
-gzip -c "$local_binary" | sudo -u pi -- ssh -t -t pi "
-	gzip -d >$remote_binary &&
+echo "Copying ${remote_binary}..."
+# Can't combine these into one, since the latter requires tty.
+gzip -c "$local_binary" | sudo -u pi -- ssh pi "gzip -d >$remote_binary"
+
+echo "Starting ${remote_binary}..."
+# Force tty allocation, because only then will remote shell receive
+# SIGHUP upon disconnect.
+# Ending non-interactive ssh session leaves child processes running.
+sudo -u pi -- ssh -t -t pi "
 	chmod +x $remote_binary &&
-	echo 'Starting ${remote_binary}...' &&
 	$remote_binary $*
 	exit \$? # somehow necessary to see an error message (e.g. killed by SEGV)
 "
