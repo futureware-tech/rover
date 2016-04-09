@@ -6,7 +6,7 @@ shift
 remote_binary="/tmp/$(basename "$local_binary").$USER"
 
 echo "Copying $remote_binary..."
-gzip -c "$local_binary" | sudo -u pi -- ssh pi "
+gzip -c "$local_binary" | sudo -u pi -- ssh -t -t pi "
 	gzip -d >$remote_binary &&
 	chmod +x $remote_binary &&
 	echo 'Starting ${remote_binary}...' &&
