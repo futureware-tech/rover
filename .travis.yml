@@ -1,9 +1,8 @@
 language: go
 
 go:
-    - 1.5
-    # Temporarily disable until Travis CI is fast again
-    #- tip
+    - 1.6
+    - tip
 
 cache:
     directories:
