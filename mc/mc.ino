@@ -48,7 +48,7 @@ int8_t encoderDelta[2][2][2][2] = {
         1, // pin2 is LOW
         0, // pin2 is HIGH
       },
-    },    
+    },
   },
 };
 

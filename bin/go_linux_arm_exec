@@ -7,13 +7,11 @@ shift
 
 remote_binary="/tmp/$(basename "$local_binary").$USER"
 
-echo "Copying ${remote_binary}..."
-# Can't combine these into one, since the latter requires tty.
-gzip -c "$local_binary" | sudo -u pi -- ssh pi "gzip -d >$remote_binary"
+echo "Copying ${local_binary}..."
+deploy copy "$local_binary" "$remote_binary"
 
 echo "Starting ${remote_binary}..."
 # Force tty allocation, because only then will remote shell receive
 # SIGHUP upon disconnect.
 # Ending non-interactive ssh session leaves child processes running.
-# Don't "exec" because bash is useful to report signals.
-sudo -u pi -- ssh -t -t pi "chmod +x $remote_binary && $remote_binary $*"
+deploy ssh -t -t "chmod +x $remote_binary && $remote_binary $*"

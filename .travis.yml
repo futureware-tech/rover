@@ -30,6 +30,24 @@ script:
     # Shell part
     - curl https://raw.githubusercontent.com/dasfoo/travis/master/shell.sh | sh -s bin/*
 
+after_success:
+    - echo "$REMOTE_HOST_KEY" >>$HOME/.ssh/known_hosts
+    - eval "$(ssh-agent)"
+    - ssh-add <(echo "$REMOTE_HOST_LOGIN_KEY" | sed 's/|/\n/g')
+    - >
+        sh -c '
+        if [ x$TRAVIS_GO_VERSION != xtip ] && [ x$TRAVIS_PULL_REQUEST = xfalse ]; then
+          ssh -q "$REMOTE_HOST" "
+            repo=github.com/${TRAVIS_REPO_SLUG};
+            rm -rf \$GOPATH/src/\$repo
+            go get -u \$repo &&
+            \$GOPATH/src/\$repo/bin/deploy push
+          ";
+        else
+            echo Not deploying PR or Go tip;
+        fi
+        '
+
 branches:
     only:
         - master

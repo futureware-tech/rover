@@ -1,0 +1,12 @@
+[Unit]
+Description=Rover server
+After=network-online.target
+
+[Service]
+User=pi
+Type=simple
+ExecStart=/home/pi/rover/rover
+RestartSec=1
+Restart=always
+StartLimitInterval=0
+StartLimitAction=reboot-force
