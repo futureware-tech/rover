@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "dasfoo.grpc.roverserver";
+option java_outer_classname = "RoverServerProto";
+option objc_class_prefix = "RTG";
+
+// The rove service definition
+service RoverService {
+	// Send command for movement
+	rpc MoveRover (RoverWheelRequest) returns (RoverWheelResponse) {} 
+}
+
+// The request message containing command for right and left wheels
+message RoverWheelRequest{
+	int32 Left = 1;
+	int32 Right = 2;
+}
+
+// The response message containing error or nil
+message RoverWheelResponse{
+	string message =1;
+}
+
