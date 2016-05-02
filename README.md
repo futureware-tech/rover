@@ -47,6 +47,7 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
       Don't forget to set `CAPTURE_PASSWORD` in `$HOME/.config/capture-server`.
     - camera streaming forwarding:
       `reverse-tunnel@<remote_host>:<port>_.service`
+    - rover API server: `rover.service`
 
 
 ## `/etc/fstab`
