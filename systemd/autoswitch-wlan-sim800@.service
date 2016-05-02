@@ -1,6 +1,10 @@
 [Unit]
 Description=Switch between various connectivity options when the Internet connection is dead
 After=network-online.target
+# stop / restart this together with rover
+PartOf=rover.service
+# start this together with rover
+WantedBy=rover.service
 
 [Service]
 Type=simple
