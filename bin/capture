@@ -1,14 +1,9 @@
 #!/bin/sh
 
-# A script to start capturing video from Raspberry Pi camera and
+# A script to start capturing a video or image from Raspberry Pi camera and
 # output it to stdout.
 
 set -e
-
-[ -n "${CAPTURE_PASSWORD}" ] && grep -q "${CAPTURE_PASSWORD}"
-
-# First, print headers (if present)
-printf "%s" "$*"
 
 if [ -n "${CAPTURE_FPS}" ]; then
 	exec raspivid \
