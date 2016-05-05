@@ -22,6 +22,12 @@
 See [Wireless CLI](
 https://www.raspberrypi.org/documentation/configuration/wireless/wireless-cli.md)
 
+## raspi-config
+
+In `# raspi-config`, use "Expand Filesystem" option to use the whole SD card.
+Right there as well, go to "Advanced Options" and enable "I2C", and agree to
+kernel module autoload.
+
 ## save SD space and package installation time
 
 See `Documentation` section of [Reducing Disk Footprint](
