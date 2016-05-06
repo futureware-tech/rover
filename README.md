@@ -58,6 +58,7 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
 
 * Do not use UART as console: `systemctl disable serial-getty@ttyAMA0.service`
 * Add services:
+
   ```
   # ln -sf /home/pi/rover/systemd/<svc>.service \
     /etc/systemd/system/multi-user.target.wants/<svc@optional_args>.service`
@@ -72,8 +73,9 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
     - rover API server: `rover@<port>.service`
     - reverse tunnel for ssh, camera streaming server, and rover API server:
       `reverse-tunnel@<remote_host>.service` and its config (3 examples):
+      
       ```
-      $ cat $HOME/.config/reverse-tunnel/<remote_host>:
+      $ cat $HOME/.config/reverse-tunnel/<remote_host>
       <remote_ssh_port> 22
       :<remote_camera_server_port> <local_camera_server_port>
       :<local_and_remote_rover_API_port>
