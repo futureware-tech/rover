@@ -15,7 +15,7 @@ addons:
         # shellcheck is not in Travis' Ubuntu
         #- shellcheck
 
-before_install:
+install:
     - pip install --user --upgrade platformio
     - platformio lib install 19 580 # Adafruit-DHT, EasyVR
     - platformio lib update
