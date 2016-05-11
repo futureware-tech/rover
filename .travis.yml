@@ -7,7 +7,6 @@ go:
 cache:
     directories:
         - ~/.platformio
-        - ~/.shellcheck
 
 addons:
     apt:
@@ -23,6 +22,7 @@ before_install:
 
 script:
     # Raspberry Pi part
+    - eval "$(curl https://raw.githubusercontent.com/dasfoo/travis/master/install-protoc.sh)"
     - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh
     # BotBoarduino part
     - platformio ci --board=diecimilaatmega328 bb
