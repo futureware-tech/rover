@@ -5,31 +5,29 @@
 
 set -e
 
-: "${1?remote side in form host:port or user@host:port required}"
+cmd=""
+while read -r REMOTE_PORT LOCAL_PORT; do
+	REMOTE_INTERFACE=127.0.0.1
+	REMOTE_INTERFACE_IPV6=::1
+	if [ "${REMOTE_PORT?}" != "${REMOTE_PORT#:}" ]; then
+		REMOTE_INTERFACE=0.0.0.0
+		REMOTE_INTERFACE_IPV6=::
+		REMOTE_PORT="${REMOTE_PORT#:}"
+	fi
+	LOCAL_PORT="${LOCAL_PORT:-${REMOTE_PORT}}"
 
-REMOTE_PORT="${1##*:}"
-SSH_TARGET="${1%:*}"
-REMOTE_INTERFACE=127.0.0.1
-if [ "${REMOTE_PORT?}" != "${REMOTE_PORT%_}" ]; then
-	REMOTE_INTERFACE=0.0.0.0
-	REMOTE_PORT="${REMOTE_PORT%_}"
-fi
-
-LOCAL_PORT="${LOCAL_PORT:-${REMOTE_PORT}}"
-
-# The script is not supposed to ssh as root, and unprivileged users normally
-# don't have permissions to listen on lower ports. We're adding a magic number
-# since it's a Raspberry Pi project, and Pi ~= 3.1416.
-[ "${REMOTE_PORT?}" -lt 1024 ] &&
-	REMOTE_PORT=$((REMOTE_PORT+31416))
+	local="localhost:${LOCAL_PORT?}"
+	cmd="$cmd -R ${REMOTE_INTERFACE?}:${REMOTE_PORT?}:$local"
+	cmd="$cmd -R [${REMOTE_INTERFACE_IPV6?}]:${REMOTE_PORT?}:$local"
+done <"$HOME/.config/reverse-tunnel/${1?remote host required}"
 
 # https://github.com/koalaman/shellcheck/issues/327
-# shellcheck disable=SC2029
-exec ssh -vvv \
+# shellcheck disable=SC2029,SC2086
+exec ssh -v \
 	-o 'ExitOnForwardFailure yes' \
 	-o 'ServerAliveInterval 30' \
 	-o 'ConnectTimeout 5' \
 	-o 'BatchMode yes' \
-	-n -N -T -R \
-	"${REMOTE_INTERFACE?}:${REMOTE_PORT?}:localhost:${LOCAL_PORT?}" \
-	"${SSH_TARGET?}"
+	-n -N -T \
+	$cmd \
+	"$1"
