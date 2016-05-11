@@ -7,7 +7,6 @@ go:
 cache:
     directories:
         - ~/.platformio
-        - ~/.shellcheck
 
 addons:
     apt:
@@ -19,9 +18,11 @@ addons:
 install:
     - pip install --user --upgrade platformio
     - platformio lib install 19 580 # Adafruit-DHT, EasyVR
+    - platformio lib update
 
 script:
     # Raspberry Pi part
+    - eval "$(curl https://raw.githubusercontent.com/dasfoo/travis/master/install-protoc.sh)"
     - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh
     # BotBoarduino part
     - platformio ci --board=diecimilaatmega328 bb

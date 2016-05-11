@@ -1,278 +1,96 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"log"
-	"net/http"
-	"strconv"
+	"net"
 	"time"
 
-	"github.com/dasfoo/bright-pi"
 	"github.com/dasfoo/i2c"
-	"github.com/dasfoo/lidar-lite-v2"
 	"github.com/dasfoo/rover/bb"
 	"github.com/dasfoo/rover/mc"
+	"golang.org/x/net/context"
+
+	"google.golang.org/grpc"
+
+	pb "github.com/dasfoo/rover/proto"
 )
 
-/*func park(b *bb.BB) {
-	_ = b.ArmBasePan(90)
-	_ = b.ArmBaseTilt(160)
-	_ = b.ArmElbow(150)
-}*/
+// server is used to implement roverserver.RoverServiceServer.
+type server struct{}
 
 var (
 	board  *bb.BB
 	motors *mc.MC
-	meter  *lidar.Lidar
-	lights *bpi.BrightPI
 )
 
-type sleeper interface {
-	Sleep() error
+// MoveRover implements
+func (s *server) MoveRover(ctx context.Context, in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
+	_ = motors.Left(int8(in.Left)) //TODO error check
+	_ = motors.Right(int8(in.Right))
+	time.Sleep(1 * time.Second)
+
+	_ = motors.Left(0)
+	_ = motors.Right(0)
+	return &pb.RoverWheelResponse{Message: "Ok "}, nil
 }
 
-type waker interface {
-	Wake() error
-}
-
-func sleepAwake(awake bool, devices ...interface{}) (changed int) {
-	for _, device := range devices {
-		if awake {
-			if w, ok := device.(waker); ok {
-				if e := w.Wake(); e == nil {
-					changed++
-				}
-			}
-		} else {
-			if s, ok := device.(sleeper); ok {
-				if e := s.Sleep(); e == nil {
-					changed++
-				}
-			}
-		}
-	}
-	return
-}
-
-func httpStatus(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Status:")
-
-	fmt.Fprint(w, "\tBattery: ")
-	if batteryPercentage, e := board.GetBatteryPercentage(); e != nil {
-		fmt.Fprintln(w, e)
-	} else {
-		fmt.Fprintf(w, "%d%%\n", batteryPercentage)
+func (s *server) GetBoardInfo(ctx context.Context, in *pb.BoardInfoRequest) (*pb.BoardInfoResponse, error) {
+	var errorResponse = &pb.BoardInfoResponse{
+		Battery:     0,
+		Light:       0,
+		Temperature: 0,
+		Humidity:    0,
 	}
 
-	fmt.Fprint(w, "\tLight (0-1023): ")
-	if light, e := board.GetAmbientLight(); e != nil {
-		fmt.Fprintln(w, e)
-	} else {
-		fmt.Fprintf(w, "%d\n", light)
+	var batteryPercentage, t, h byte
+	var e error
+	var light uint16
+
+	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
+		return errorResponse, e
 	}
 
-	fmt.Fprintln(w, "\tEncoders:")
-	fmt.Fprint(w, "\t\tLeft Front: ")
-	if encoder, e := motors.ReadEncoder(mc.EncoderLeftFront); e != nil {
-		fmt.Fprintln(w, e)
-	} else {
-		fmt.Fprintln(w, encoder)
-	}
-	fmt.Fprint(w, "\t\tLeft Back: ")
-	if encoder, e := motors.ReadEncoder(mc.EncoderLeftBack); e != nil {
-		fmt.Fprintln(w, e)
-	} else {
-		fmt.Fprintln(w, encoder)
-	}
-	fmt.Fprint(w, "\t\tRight Front: ")
-	if encoder, e := motors.ReadEncoder(mc.EncoderRightFront); e != nil {
-		fmt.Fprintln(w, e)
-	} else {
-		fmt.Fprintln(w, encoder)
-	}
-	fmt.Fprint(w, "\t\tRight Back: ")
-	if encoder, e := motors.ReadEncoder(mc.EncoderRightBack); e != nil {
-		fmt.Fprintln(w, e)
-	} else {
-		fmt.Fprintln(w, encoder)
+	if light, e = board.GetAmbientLight(); e != nil {
+		return errorResponse, e
 	}
 
-	fmt.Fprint(w, "\tEnvironment: ")
-	if t, h, e := board.GetTemperatureAndHumidity(); e != nil {
-		fmt.Fprintln(w, e)
-	} else {
-		fmt.Fprintln(w, "temperature", t, "*C, humidity", h, "%")
+	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
+		return errorResponse, e
 	}
-
-	fmt.Fprint(w, "\tDistance: ")
-	if d, e := meter.GetDistance(); e != nil {
-		fmt.Fprintln(w, e)
-	} else {
-		fmt.Fprintln(w, d, "cm")
-	}
-}
-
-func httpMove(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		_ = motors.Left(0)
-		_ = motors.Right(0)
-	}()
-
-	if e := r.ParseForm(); e != nil {
-		fmt.Fprintln(w, e)
-		return
-	}
-
-	var (
-		left, right, duration int
-		e                     error
-	)
-	if left, e = strconv.Atoi(r.FormValue("left")); e != nil {
-		fmt.Fprintln(w, "Left:", e)
-		return
-	}
-	if right, e = strconv.Atoi(r.FormValue("right")); e != nil {
-		fmt.Fprintln(w, "Right:", e)
-		return
-	}
-	if duration, e = strconv.Atoi(r.FormValue("duration")); e != nil {
-		fmt.Fprintln(w, "Duration:", e)
-		return
-	}
-
-	if e = motors.Left(int8(left)); e != nil {
-		fmt.Fprintln(w, "Left:", e)
-		return
-	}
-	if e = motors.Right(int8(right)); e != nil {
-		fmt.Fprintln(w, "Right:", e)
-		return
-	}
-	fmt.Fprint(w, "Started... ")
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	}
-	time.Sleep(time.Duration(duration) * time.Millisecond)
-	fmt.Fprintln(w, "Done")
-}
-
-func httpSleep(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Setting sleep (low power) mode: ")
-	// Putting motor controller to sleep doesn't seem perfect yet - motors may go crazy
-	changed := sleepAwake(false, board, meter, lights)
-	fmt.Fprintln(w, changed, "changed")
-}
-
-func httpWake(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Setting wake mode: ")
-	changed := sleepAwake(true, board, meter, motors, lights)
-	fmt.Fprintln(w, changed, "changed")
+	return &pb.BoardInfoResponse{
+		Battery:     int32(batteryPercentage),
+		Light:       int32(light),
+		Temperature: int32(t),
+		Humidity:    int32(h),
+	}, e
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
 
+	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	var laddr = flag.String("laddr", "", "laddr")
+	var test = flag.Bool("test", false, "Flag for startup script")
+	flag.Parse()
+	log.Println("Properties from command line:", *laddr)
+	log.Println("Flag for startup script", *test)
 	if bus, err := i2c.NewBus(1); err != nil {
 		log.Fatal(err)
 	} else {
 		// Silence i2c bus log
-		bus.Log = func(string, ...interface{}) {}
+		//bus.Log = func(string, ...interface{}) {}
 
 		board = bb.NewBB(bus, bb.Address)
 		motors = mc.NewMC(bus, mc.Address)
-		meter = lidar.NewLidar(bus, lidar.DefaultAddress)
-		lights = bpi.NewBrightPI(bus, bpi.DefaultAddress)
-
-		if s, e := board.GetStatus(); e == nil {
-			fmt.Printf("Status bits: %.16b\n", s)
-		}
 	}
-
-	http.HandleFunc("/status", httpStatus)
-
-	http.HandleFunc("/quit", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Bye!")
-		if flusher, ok := w.(http.Flusher); ok {
-			flusher.Flush()
-		}
-		log.Fatal("/quit handler")
-	})
-
-	http.HandleFunc("/sleep", httpSleep)
-	http.HandleFunc("/distance", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Version: ")
-		if hw, sw, e := meter.GetVersion(); e != nil {
-			fmt.Fprintln(w, e)
-		} else {
-			fmt.Fprintf(w, "LIDAR-Lite v2 \"Blue Label\" hw%dsw%d\n", hw, sw)
-		}
-
-		/* Continuous mode. First, prepare safe position for hand. Rotate lidar during operation
-		_ = meter.SetContinuousMode(50, 100*time.Millisecond)
-		_ = meter.Acquire(false)
-		for i := 0; i < 50; i++ {
-			fmt.Println("Round", i)
-			fmt.Println(s.ReadDistance())
-			fmt.Println(s.ReadVelocity())
-			time.Sleep(100 * time.Millisecond)
-		}*/
-	})
-
-	http.HandleFunc("/wake", httpWake)
-
-	http.HandleFunc("/reset", func(w http.ResponseWriter, r *http.Request) {
-		board.Reset(bb.ResetPin)
-		fmt.Fprintln(w, "Done")
-	})
-
-	http.HandleFunc("/move", httpMove)
-
-	log.Fatal(http.ListenAndServe(":8080", nil))
-
-	/*_ = mco.Left(mc.MaxSpeed / 2)
-	time.Sleep(300 * time.Millisecond)
-	_ = mco.Left(0)
-	time.Sleep(time.Second)
-	_ = mco.Right(-mc.MaxSpeed / 2)
-	time.Sleep(300 * time.Millisecond)
-	_ = mco.Right(0)
-	time.Sleep(time.Second)
-
-	_ = board.ArmWristRotate(90)
-	_ = board.ArmGrip(0)
-	time.Sleep(time.Second)
-	for i := 0; i < 3; i++ {
-		_ = board.ArmBaseTilt(90)
-		_ = board.ArmElbow(90)
-		_ = board.ArmBasePan(45)
-		time.Sleep(time.Second)
-
-		_ = board.Tilt(45)
-		time.Sleep(time.Second)
-		_ = board.Tilt(90)
-
-		_ = board.ArmBaseTilt(45)
-		_ = board.ArmElbow(90)
-		_ = board.ArmWristTilt(45)
-		time.Sleep(time.Second)
-
-		_ = board.ArmGrip(120)
-		time.Sleep(time.Second)
-
-		_ = board.ArmBaseTilt(90)
-		_ = board.ArmElbow(90)
-		time.Sleep(time.Second)
-
-		_ = board.ArmBasePan(90)
-		time.Sleep(time.Second)
-
-		_ = board.ArmBaseTilt(45)
-		_ = board.ArmElbow(90)
-		_ = board.ArmWristTilt(45)
-		_ = board.ArmGrip(0)
+	lis, err := net.Listen("tcp", *laddr)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
 	}
-
-	time.Sleep(time.Second)
-	park(board)
-	time.Sleep(time.Second)*/
+	log.Println("Server started")
+	s := grpc.NewServer()
+	pb.RegisterRoverServiceServer(s, &server{})
+	if err := s.Serve(lis); err != nil {
+		log.Fatal(err)
+	}
 }
