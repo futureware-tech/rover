@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"log"
 	"net"
 	"time"
@@ -14,10 +14,6 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/dasfoo/rover/proto"
-)
-
-const (
-	port = ":50051"
 )
 
 // server is used to implement roverserver.RoverServiceServer.
@@ -73,7 +69,11 @@ func (s *server) GetBoardInfo(ctx context.Context, in *pb.BoardInfoRequest) (*pb
 func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
-
+	var laddr = flag.String("laddr", "", "laddr")
+	var test = flag.Bool("test", false, "Flag for startup script")
+	flag.Parse()
+	log.Println("Properties from command line:", *laddr)
+	log.Println("Flag for startup script", *test)
 	if bus, err := i2c.NewBus(1); err != nil {
 		log.Fatal(err)
 	} else {
@@ -82,16 +82,12 @@ func main() {
 
 		board = bb.NewBB(bus, bb.Address)
 		motors = mc.NewMC(bus, mc.Address)
-
-		if s, e := board.GetStatus(); e == nil {
-			fmt.Printf("Status bits: %.16b\n", s)
-		}
 	}
-	log.Println("Server started")
-	lis, err := net.Listen("tcp", port)
+	lis, err := net.Listen("tcp", *laddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+	log.Println("Server started")
 	s := grpc.NewServer()
 	pb.RegisterRoverServiceServer(s, &server{})
 	s.Serve(lis)
