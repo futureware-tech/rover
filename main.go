@@ -90,5 +90,7 @@ func main() {
 	log.Println("Server started")
 	s := grpc.NewServer()
 	pb.RegisterRoverServiceServer(s, &server{})
-	s.Serve(lis)
+	if err := s.Serve(lis); err != nil {
+		log.Fatal(err)
+	}
 }
