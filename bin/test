@@ -3,5 +3,7 @@
 set -a
 PATH="$PATH:$(realpath -m "$0/..")"
 eval "$(deploy env)"
+# 'go generate' doesn't work with absolute paths
+go generate "$(realpath --relative-to="$PWD" -m "$0/../..")/..."
 # 'go run' will be looking for go_${GOOS}_${GOARCH}_exec in $PATH
 go run "$@" -test
