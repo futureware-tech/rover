@@ -36,18 +36,16 @@ after_success:
     - eval "$(ssh-agent)"
     - ssh-add <(echo "$REMOTE_HOST_LOGIN_KEY" | sed 's/|/\n/g')
     - >
-        sh -c '
-        if [ x$TRAVIS_GO_VERSION != xtip ] && [ x$TRAVIS_PULL_REQUEST = xfalse ]; then
+        if [ "$TRAVIS_GO_VERSION" != "tip" ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
+          tar -C "$GOPATH/src" -czf - . |
           ssh -q "$REMOTE_HOST" "
-            repo=github.com/${TRAVIS_REPO_SLUG};
-            rm -rf \$GOPATH/src/\$repo
-            go get -u \$repo &&
-            \$GOPATH/src/\$repo/bin/deploy push
+            rm -rf \$GOPATH/src &&
+            tar -xzf - -C \$GOPATH/src &&
+            \$GOPATH/src/github.com/${TRAVIS_REPO_SLUG}/bin/deploy push
           ";
         else
             echo Not deploying PR or Go tip;
         fi
-        '
 
 branches:
     only:
