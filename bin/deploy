@@ -23,8 +23,9 @@ deploy_ssh() {
 }
 
 deploy_copy() {
+	: "${1?source required}"
 	[ -n "$2" ] && transform="--transform 's|.*|$2|'"
-	tar czpf - "${1?source required}" |
+	tar -czpf - -C "$(dirname "$1")" "$(basename "$1")" |
 		deploy_ssh "tar xzf - -P $transform"
 }
 
