@@ -35,7 +35,6 @@ deploy_push() {
 		# propagade the following environment variables to "go build"
 		set -a
 		eval "$(deploy_env)"
-		go generate ./...
 		go build
 		cd ..
 		package="$(basename "$package_path")"
