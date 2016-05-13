@@ -37,12 +37,12 @@ after_success:
     - ssh-add <(echo "$REMOTE_HOST_LOGIN_KEY" | sed 's/|/\n/g')
     - >
         if [ "$TRAVIS_GO_VERSION" != "tip" ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
-          tar -C "$GOPATH/src" -czf - . |
+          tar -C "$GOPATH" -czf - src |
           ssh -q "$REMOTE_HOST" "
             rm -rf \$GOPATH/src &&
-            mkdir -p \$_ &&
-            tar -xzf - -C \$_ &&
-            \$_/github.com/${TRAVIS_REPO_SLUG}/bin/deploy push
+            mkdir -p \$GOPATH &&
+            tar -xzf - -C \$GOPATH &&
+            \$GOPATH/src/github.com/${TRAVIS_REPO_SLUG}/bin/deploy push
           ";
         else
             echo Not deploying PR or Go tip;
