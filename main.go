@@ -34,8 +34,7 @@ func (s *server) MoveRover(ctx context.Context, in *pb.RoverWheelRequest) (*pb.R
 	_ = motors.Right(0)
 	return &pb.RoverWheelResponse{
 		Status: &pb.Status{
-			Code:    pb.StatusCode_OK,
-			Message: "",
+			Code: pb.StatusCode_OK,
 		},
 	}, nil
 }
@@ -47,9 +46,10 @@ func (s *server) GetBoardInfo(ctx context.Context, in *pb.BoardInfoRequest) (*pb
 		Temperature: 0,
 		Humidity:    0,
 		Status: &pb.Status{
-			Code:    pb.StatusCode_HARDWARE,
+			Code:    pb.StatusCode_HARDWARE_FAILURE,
 			Message: "Problems with enviroment",
-		}}
+		},
+	}
 
 	var batteryPercentage, t, h byte
 	var e error
@@ -72,9 +72,9 @@ func (s *server) GetBoardInfo(ctx context.Context, in *pb.BoardInfoRequest) (*pb
 		Temperature: int32(t),
 		Humidity:    int32(h),
 		Status: &pb.Status{
-			Code:    pb.StatusCode_OK,
-			Message: "",
-		}}, e
+			Code: pb.StatusCode_OK,
+		},
+	}, e
 }
 
 func main() {
