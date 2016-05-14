@@ -52,9 +52,6 @@ func (s *server) GetBatteryPercentage(ctx context.Context, in *pb.BatteryPercent
 	}
 	return &pb.BatteryPercentageResponse{
 		Battery: int32(batteryPercentage),
-		Status: &pb.Status{
-			Code: pb.StatusCode_OK,
-		},
 	}, e
 }
 
@@ -71,9 +68,6 @@ func (s *server) GetAmbientLight(ctx context.Context, in *pb.AmbientLightRequest
 	}
 	return &pb.AmbientLightResponse{
 		Light: int32(light),
-		Status: &pb.Status{
-			Code: pb.StatusCode_OK,
-		},
 	}, e
 }
 
@@ -91,9 +85,6 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context, in *pb.Temperatu
 	return &pb.TemperatureAndHumidityResponse{
 		Temperature: int32(t), // TODO: check byte in proto
 		Humidity:    int32(h),
-		Status: &pb.Status{
-			Code: pb.StatusCode_OK,
-		},
 	}, e
 }
 
