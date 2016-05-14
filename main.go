@@ -39,7 +39,8 @@ func (s *server) MoveRover(ctx context.Context, in *pb.RoverWheelRequest) (*pb.R
 	}, nil
 }
 
-func (s *server) GetBatteryPercentage(ctx context.Context, in *pb.BatteryPercentageRequest) (*pb.BatteryPercentageResponse, error) {
+func (s *server) GetBatteryPercentage(ctx context.Context,
+	in *pb.BatteryPercentageRequest) (*pb.BatteryPercentageResponse, error) {
 	var batteryPercentage byte
 	var e error
 	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
@@ -51,11 +52,13 @@ func (s *server) GetBatteryPercentage(ctx context.Context, in *pb.BatteryPercent
 		}, e
 	}
 	return &pb.BatteryPercentageResponse{
+		Status:  &pb.Status{},
 		Battery: int32(batteryPercentage),
 	}, e
 }
 
-func (s *server) GetAmbientLight(ctx context.Context, in *pb.AmbientLightRequest) (*pb.AmbientLightResponse, error) {
+func (s *server) GetAmbientLight(ctx context.Context,
+	in *pb.AmbientLightRequest) (*pb.AmbientLightResponse, error) {
 	var light uint16
 	var e error
 	if light, e = board.GetAmbientLight(); e != nil {
@@ -67,11 +70,13 @@ func (s *server) GetAmbientLight(ctx context.Context, in *pb.AmbientLightRequest
 		}, e
 	}
 	return &pb.AmbientLightResponse{
-		Light: int32(light),
+		Status: &pb.Status{},
+		Light:  int32(light),
 	}, e
 }
 
-func (s *server) GetTemperatureAndHumidity(ctx context.Context, in *pb.TemperatureAndHumidityRequest) (*pb.TemperatureAndHumidityResponse, error) {
+func (s *server) GetTemperatureAndHumidity(ctx context.Context,
+	in *pb.TemperatureAndHumidityRequest) (*pb.TemperatureAndHumidityResponse, error) {
 	var t, h byte
 	var e error
 	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
@@ -83,6 +88,7 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context, in *pb.Temperatu
 		}, e
 	}
 	return &pb.TemperatureAndHumidityResponse{
+		Status:      &pb.Status{},
 		Temperature: int32(t), // TODO: check byte in proto
 		Humidity:    int32(h),
 	}, e
