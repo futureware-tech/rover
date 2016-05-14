@@ -24,8 +24,16 @@ var (
 	motors *mc.MC
 )
 
+func getStatus(e error) *pb.Status {
+	return &pb.Status{
+		Code:    pb.StatusCode_HARDWARE_FAILURE,
+		Message: e.Error(),
+	}
+}
+
 // MoveRover implements
-func (s *server) MoveRover(ctx context.Context, in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
+func (s *server) MoveRover(ctx context.Context,
+	in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
 	_ = motors.Left(int8(in.Left)) //TODO error check
 	_ = motors.Right(int8(in.Right))
 	time.Sleep(1 * time.Second)
@@ -39,41 +47,50 @@ func (s *server) MoveRover(ctx context.Context, in *pb.RoverWheelRequest) (*pb.R
 	}, nil
 }
 
-func (s *server) GetBoardInfo(ctx context.Context, in *pb.BoardInfoRequest) (*pb.BoardInfoResponse, error) {
-	var errorResponse = &pb.BoardInfoResponse{
-		Battery:     0,
-		Light:       0,
-		Temperature: 0,
-		Humidity:    0,
-		Status: &pb.Status{
-			Code:    pb.StatusCode_HARDWARE_FAILURE,
-			Message: "Problems with enviroment",
-		},
-	}
-
-	var batteryPercentage, t, h byte
+func (s *server) GetBatteryPercentage(ctx context.Context,
+	in *pb.BatteryPercentageRequest) (*pb.BatteryPercentageResponse, error) {
+	var batteryPercentage byte
 	var e error
-	var light uint16
-
 	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
-		return errorResponse, e
+		return &pb.BatteryPercentageResponse{
+			Status: getStatus(e),
+		}, e
 	}
+	return &pb.BatteryPercentageResponse{
+		Status:  &pb.Status{},
+		Battery: int32(batteryPercentage),
+	}, e
+}
 
+func (s *server) GetAmbientLight(ctx context.Context,
+	in *pb.AmbientLightRequest) (*pb.AmbientLightResponse, error) {
+	var light uint16
+	var e error
 	if light, e = board.GetAmbientLight(); e != nil {
-		return errorResponse, e
+		return &pb.AmbientLightResponse{
+			Status: getStatus(e),
+		}, e
 	}
+	return &pb.AmbientLightResponse{
+		Status: &pb.Status{},
+		Light:  int32(light),
+	}, e
+}
 
+func (s *server) GetTemperatureAndHumidity(ctx context.Context,
+	in *pb.TemperatureAndHumidityRequest) (*pb.TemperatureAndHumidityResponse, error) {
+	var t, h byte
+	var e error
 	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
-		return errorResponse, e
+		return &pb.TemperatureAndHumidityResponse{
+			Status: getStatus(e),
+		}, e
+
 	}
-	return &pb.BoardInfoResponse{
-		Battery:     int32(batteryPercentage),
-		Light:       int32(light),
-		Temperature: int32(t),
+	return &pb.TemperatureAndHumidityResponse{
+		Status:      &pb.Status{},
+		Temperature: int32(t), // TODO: check byte in proto
 		Humidity:    int32(h),
-		Status: &pb.Status{
-			Code: pb.StatusCode_OK,
-		},
 	}, e
 }
 
