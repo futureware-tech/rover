@@ -24,6 +24,13 @@ var (
 	motors *mc.MC
 )
 
+func getStatus(e error) *pb.Status {
+	return &pb.Status{
+		Code:    pb.StatusCode_HARDWARE_FAILURE,
+		Message: e.Error(),
+	}
+}
+
 // MoveRover implements
 func (s *server) MoveRover(ctx context.Context, in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
 	_ = motors.Left(int8(in.Left)) //TODO error check
@@ -45,10 +52,7 @@ func (s *server) GetBatteryPercentage(ctx context.Context,
 	var e error
 	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
 		return &pb.BatteryPercentageResponse{
-			Status: &pb.Status{
-				Code:    pb.StatusCode_HARDWARE_FAILURE,
-				Message: e.Error(),
-			},
+			Status: getStatus(e),
 		}, e
 	}
 	return &pb.BatteryPercentageResponse{
@@ -63,10 +67,7 @@ func (s *server) GetAmbientLight(ctx context.Context,
 	var e error
 	if light, e = board.GetAmbientLight(); e != nil {
 		return &pb.AmbientLightResponse{
-			Status: &pb.Status{
-				Code:    pb.StatusCode_HARDWARE_FAILURE,
-				Message: e.Error(),
-			},
+			Status: getStatus(e),
 		}, e
 	}
 	return &pb.AmbientLightResponse{
@@ -81,11 +82,9 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	var e error
 	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
 		return &pb.TemperatureAndHumidityResponse{
-			Status: &pb.Status{
-				Code:    pb.StatusCode_HARDWARE_FAILURE,
-				Message: e.Error(),
-			},
+			Status: getStatus(e),
 		}, e
+
 	}
 	return &pb.TemperatureAndHumidityResponse{
 		Status:      &pb.Status{},
