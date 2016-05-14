@@ -44,18 +44,16 @@ func (s *server) GetBatteryPercentage(ctx context.Context, in *pb.BatteryPercent
 	var e error
 	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
 		return &pb.BatteryPercentageResponse{
-			Battery: 0,
 			Status: &pb.Status{
 				Code:    pb.StatusCode_HARDWARE_FAILURE,
-				Message: "Problems with enviroment",
+				Message: e.Error(),
 			},
 		}, e
 	}
 	return &pb.BatteryPercentageResponse{
 		Battery: int32(batteryPercentage),
 		Status: &pb.Status{
-			Code:    pb.StatusCode_OK,
-			Message: "",
+			Code: pb.StatusCode_OK,
 		},
 	}, e
 }
@@ -65,18 +63,16 @@ func (s *server) GetAmbientLight(ctx context.Context, in *pb.AmbientLightRequest
 	var e error
 	if light, e = board.GetAmbientLight(); e != nil {
 		return &pb.AmbientLightResponse{
-			Light: 0,
 			Status: &pb.Status{
 				Code:    pb.StatusCode_HARDWARE_FAILURE,
-				Message: "Problems with enviroment",
+				Message: e.Error(),
 			},
 		}, e
 	}
 	return &pb.AmbientLightResponse{
 		Light: int32(light),
 		Status: &pb.Status{
-			Code:    pb.StatusCode_OK,
-			Message: "",
+			Code: pb.StatusCode_OK,
 		},
 	}, e
 }
@@ -86,11 +82,9 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context, in *pb.Temperatu
 	var e error
 	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
 		return &pb.TemperatureAndHumidityResponse{
-			Temperature: 0,
-			Humidity:    0,
 			Status: &pb.Status{
 				Code:    pb.StatusCode_HARDWARE_FAILURE,
-				Message: "Problems with sensor",
+				Message: e.Error(),
 			},
 		}, e
 	}
@@ -98,8 +92,7 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context, in *pb.Temperatu
 		Temperature: int32(t), // TODO: check byte in proto
 		Humidity:    int32(h),
 		Status: &pb.Status{
-			Code:    pb.StatusCode_OK,
-			Message: "",
+			Code: pb.StatusCode_OK,
 		},
 	}, e
 }
