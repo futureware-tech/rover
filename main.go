@@ -32,7 +32,8 @@ func getStatus(e error) *pb.Status {
 }
 
 // MoveRover implements
-func (s *server) MoveRover(ctx context.Context, in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
+func (s *server) MoveRover(ctx context.Context,
+	in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
 	_ = motors.Left(int8(in.Left)) //TODO error check
 	_ = motors.Right(int8(in.Right))
 	time.Sleep(1 * time.Second)
