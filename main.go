@@ -94,6 +94,39 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	}, e
 }
 
+func (s *server) ReadEncoders(ctx context.Context,
+	in *pb.ReadEncodersRequest) (*pb.ReadEncodersResponse, error) {
+	var leftFront, leftBack, rightFront, rightBack int32
+	var e error
+	if leftFront, e = motors.ReadEncoder(mc.EncoderLeftFront); e != nil {
+		return &pb.ReadEncodersResponse{
+			Status: &pb.Status{},
+		}, e
+	}
+	if leftBack, e = motors.ReadEncoder(mc.EncoderLeftBack); e != nil {
+		return &pb.ReadEncodersResponse{
+			Status: &pb.Status{},
+		}, e
+	}
+	if rightFront, e = motors.ReadEncoder(mc.EncoderRightFront); e != nil {
+		return &pb.ReadEncodersResponse{
+			Status: &pb.Status{},
+		}, e
+	}
+	if rightBack, e = motors.ReadEncoder(mc.EncoderRightBack); e != nil {
+		return &pb.ReadEncodersResponse{
+			Status: &pb.Status{},
+		}, e
+	}
+	return &pb.ReadEncodersResponse{
+		Status:     &pb.Status{},
+		LeftFront:  leftFront,
+		LeftBack:   leftBack,
+		RightFront: rightFront,
+		RightBack:  rightBack,
+	}, e
+}
+
 func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
