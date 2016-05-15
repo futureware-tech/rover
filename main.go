@@ -100,22 +100,22 @@ func (s *server) ReadEncoders(ctx context.Context,
 	var e error
 	if leftFront, e = motors.ReadEncoder(mc.EncoderLeftFront); e != nil {
 		return &pb.ReadEncodersResponse{
-			Status: &pb.Status{},
+			Status: getStatus(e),
 		}, e
 	}
 	if leftBack, e = motors.ReadEncoder(mc.EncoderLeftBack); e != nil {
 		return &pb.ReadEncodersResponse{
-			Status: &pb.Status{},
+			Status: getStatus(e),
 		}, e
 	}
 	if rightFront, e = motors.ReadEncoder(mc.EncoderRightFront); e != nil {
 		return &pb.ReadEncodersResponse{
-			Status: &pb.Status{},
+			Status: getStatus(e),
 		}, e
 	}
 	if rightBack, e = motors.ReadEncoder(mc.EncoderRightBack); e != nil {
 		return &pb.ReadEncodersResponse{
-			Status: &pb.Status{},
+			Status: getStatus(e),
 		}, e
 	}
 	return &pb.ReadEncodersResponse{
