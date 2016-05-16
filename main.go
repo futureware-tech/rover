@@ -41,7 +41,7 @@ func (s *server) GetBatteryPercentage(ctx context.Context,
 	var batteryPercentage byte
 	var e error
 	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
-		return &pb.BatteryPercentageResponse{}, e
+		return nil, e
 	}
 	return &pb.BatteryPercentageResponse{
 		Battery: int32(batteryPercentage),
@@ -53,7 +53,7 @@ func (s *server) GetAmbientLight(ctx context.Context,
 	var light uint16
 	var e error
 	if light, e = board.GetAmbientLight(); e != nil {
-		return &pb.AmbientLightResponse{}, e
+		return nil, e
 	}
 	return &pb.AmbientLightResponse{
 		Light: int32(light),
@@ -65,7 +65,7 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	var t, h byte
 	var e error
 	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
-		return &pb.TemperatureAndHumidityResponse{}, e
+		return nil, e
 	}
 	return &pb.TemperatureAndHumidityResponse{
 		Temperature: int32(t), // TODO: check byte in proto
@@ -78,16 +78,16 @@ func (s *server) ReadEncoders(ctx context.Context,
 	var leftFront, leftBack, rightFront, rightBack int32
 	var e error
 	if leftFront, e = motors.ReadEncoder(mc.EncoderLeftFront); e != nil {
-		return &pb.ReadEncodersResponse{}, e
+		return nil, e
 	}
 	if leftBack, e = motors.ReadEncoder(mc.EncoderLeftBack); e != nil {
-		return &pb.ReadEncodersResponse{}, e
+		return nil, e
 	}
 	if rightFront, e = motors.ReadEncoder(mc.EncoderRightFront); e != nil {
-		return &pb.ReadEncodersResponse{}, e
+		return nil, e
 	}
 	if rightBack, e = motors.ReadEncoder(mc.EncoderRightBack); e != nil {
-		return &pb.ReadEncodersResponse{}, e
+		return nil, e
 	}
 	return &pb.ReadEncodersResponse{
 		LeftFront:  leftFront,
@@ -112,7 +112,7 @@ func main() {
 		//bus.Log = func(string, ...interface{}) {}
 
 		board = bb.NewBB(bus, bb.Address)
-		motors = mc.NewMC(bus, mc.Address)
+		motors = mc.NewMC(bus, mc.Address+2)
 	}
 	lis, err := net.Listen("tcp", *laddr)
 	if err != nil {
