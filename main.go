@@ -24,13 +24,6 @@ var (
 	motors *mc.MC
 )
 
-func getStatus(e error) *pb.Status {
-	return &pb.Status{
-		Code:    pb.StatusCode_HARDWARE_FAILURE,
-		Message: e.Error(),
-	}
-}
-
 // MoveRover implements
 func (s *server) MoveRover(ctx context.Context,
 	in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
@@ -40,11 +33,7 @@ func (s *server) MoveRover(ctx context.Context,
 
 	_ = motors.Left(0)
 	_ = motors.Right(0)
-	return &pb.RoverWheelResponse{
-		Status: &pb.Status{
-			Code: pb.StatusCode_OK,
-		},
-	}, nil
+	return &pb.RoverWheelResponse{}, nil
 }
 
 func (s *server) GetBatteryPercentage(ctx context.Context,
@@ -52,14 +41,11 @@ func (s *server) GetBatteryPercentage(ctx context.Context,
 	var batteryPercentage byte
 	var e error
 	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
-		return &pb.BatteryPercentageResponse{
-			Status: getStatus(e),
-		}, e
+		return &pb.BatteryPercentageResponse{}, e
 	}
 	return &pb.BatteryPercentageResponse{
-		Status:  &pb.Status{},
 		Battery: int32(batteryPercentage),
-	}, e
+	}, nil
 }
 
 func (s *server) GetAmbientLight(ctx context.Context,
@@ -67,14 +53,11 @@ func (s *server) GetAmbientLight(ctx context.Context,
 	var light uint16
 	var e error
 	if light, e = board.GetAmbientLight(); e != nil {
-		return &pb.AmbientLightResponse{
-			Status: getStatus(e),
-		}, e
+		return &pb.AmbientLightResponse{}, e
 	}
 	return &pb.AmbientLightResponse{
-		Status: &pb.Status{},
-		Light:  int32(light),
-	}, e
+		Light: int32(light),
+	}, nil
 }
 
 func (s *server) GetTemperatureAndHumidity(ctx context.Context,
@@ -82,16 +65,12 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	var t, h byte
 	var e error
 	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
-		return &pb.TemperatureAndHumidityResponse{
-			Status: getStatus(e),
-		}, e
-
+		return &pb.TemperatureAndHumidityResponse{}, e
 	}
 	return &pb.TemperatureAndHumidityResponse{
-		Status:      &pb.Status{},
 		Temperature: int32(t), // TODO: check byte in proto
 		Humidity:    int32(h),
-	}, e
+	}, nil
 }
 
 func (s *server) ReadEncoders(ctx context.Context,
@@ -99,32 +78,23 @@ func (s *server) ReadEncoders(ctx context.Context,
 	var leftFront, leftBack, rightFront, rightBack int32
 	var e error
 	if leftFront, e = motors.ReadEncoder(mc.EncoderLeftFront); e != nil {
-		return &pb.ReadEncodersResponse{
-			Status: getStatus(e),
-		}, e
+		return &pb.ReadEncodersResponse{}, e
 	}
 	if leftBack, e = motors.ReadEncoder(mc.EncoderLeftBack); e != nil {
-		return &pb.ReadEncodersResponse{
-			Status: getStatus(e),
-		}, e
+		return &pb.ReadEncodersResponse{}, e
 	}
 	if rightFront, e = motors.ReadEncoder(mc.EncoderRightFront); e != nil {
-		return &pb.ReadEncodersResponse{
-			Status: getStatus(e),
-		}, e
+		return &pb.ReadEncodersResponse{}, e
 	}
 	if rightBack, e = motors.ReadEncoder(mc.EncoderRightBack); e != nil {
-		return &pb.ReadEncodersResponse{
-			Status: getStatus(e),
-		}, e
+		return &pb.ReadEncodersResponse{}, e
 	}
 	return &pb.ReadEncodersResponse{
-		Status:     &pb.Status{},
 		LeftFront:  leftFront,
 		LeftBack:   leftBack,
 		RightFront: rightFront,
 		RightBack:  rightBack,
-	}, e
+	}, nil
 }
 
 func main() {
