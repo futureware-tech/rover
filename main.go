@@ -112,7 +112,7 @@ func main() {
 		//bus.Log = func(string, ...interface{}) {}
 
 		board = bb.NewBB(bus, bb.Address)
-		motors = mc.NewMC(bus, mc.Address+2)
+		motors = mc.NewMC(bus, mc.Address)
 	}
 	lis, err := net.Listen("tcp", *laddr)
 	if err != nil {
