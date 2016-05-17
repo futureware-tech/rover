@@ -26,8 +26,6 @@ echo "Reading options for request: $URL" >&2
 # Set known variables from specific headers.
 eval "$(sed -nr 's/^X-Capture-Server-(WIDTH|HEIGHT|FPS|PASSWORD): ([a-z0-9]+)\r?$/export CAPTURE_\1=\2/p; /^\r?$/q')"
 
-env | grep '^CAPTURE_' >&2
-
 if [ "${ACTUAL_CAPTURE_PASSWORD}" != "${CAPTURE_PASSWORD}" ]; then
 	# Password may be in the URL - e.g. opened from VLC
 	if ! echo "$URL" | grep -q "${ACTUAL_CAPTURE_PASSWORD}"; then
