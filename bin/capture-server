@@ -44,4 +44,6 @@ else
 fi
 
 echo
-exec "$MYDIR/capture"
+# Redirect stderr to HTTP stream - we've already sent Content-Type in, but it's easier to detect
+# wrong format client-side than implement back-and-forth flipping at the server.
+exec "$MYDIR/capture" 2>&1
