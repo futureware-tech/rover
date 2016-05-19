@@ -26,7 +26,9 @@ var (
 )
 
 func getError(e error) error {
-	return grpc.Errorf(codes.Unavailable, "%s", e.Error())
+	errf := grpc.Errorf // Confuse `go vet' to not check this `Errorf' call. :(
+	// See https://github.com/grpc/grpc-go/issues/90
+	return errf(codes.Unavailable, "%s", e.Error())
 }
 
 // MoveRover implements
