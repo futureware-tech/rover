@@ -26,7 +26,7 @@ var (
 )
 
 func getError(e error) error {
-	return grpc.Errorf(codes.Unavailable, e.Error())
+	return grpc.Errorf(codes.Unavailable, "%s", e.Error())
 }
 
 // MoveRover implements
