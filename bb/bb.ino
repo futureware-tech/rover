@@ -16,24 +16,24 @@ enum {
   PinSerialRX = 0,
   PinSerialTX = 1,
   PinReserved0 = 2,
-  PinReserved1 = 3,      // PWM
+  PinReserved1 = 3,       // PWM
   PinEnvironmentSensor = 4,
-  PinSpeaker = 5,        // speaker enabled by jumper, PWM/timer
-  PinArmBasePan = 6,     // PWM/timer
-  PinArmBaseTilt = 7,    // A LED enabled by jumper, A button
-  PinArmElbow = 8,       // B LED enabled by jumper, B button
-  PinArmWristRotate = 9, // C LED enabled by jumper, C button, PWM
-  PinArmWristTilt = 10,  // PWM
-  PinArmGrip = 11,       // PWM
+  PinSpeaker = 5,         // speaker enabled by jumper, PWM/timer
+  PinArmBasePan = 6,      // PWM/timer
+  PinArmBaseTilt = 7,     // A LED enabled by jumper, A button
+  PinArmElbow = 8,        // B LED enabled by jumper, B button
+  PinArmWristRotate = 9,  // C LED enabled by jumper, C button, PWM
+  PinArmWristTilt = 10,   // PWM
+  PinArmGrip = 11,        // PWM
   PinTilt = 12,
-  PinAwakeLed = 13,      // "L" LED
+  PinAwakeLed = 13,       // "L" LED
 };
 
 enum {
   AnalogPinBattery = 2,
   AnalogPinLightSensor = 3,
-  AnalogPinI2CSDA = 4, // i2c enabled by jumper (blue wire)
-  AnalogPinI2CSCL = 5, // i2c enabled by jumper (green wire)
+  AnalogPinI2CSDA = 4,  // i2c enabled by jumper (blue wire)
+  AnalogPinI2CSCL = 5,  // i2c enabled by jumper (green wire)
 };
 
 Servo Tilt,
@@ -44,7 +44,7 @@ Servo Tilt,
 DHT EnvironmentSensor(PinEnvironmentSensor, DHT11);
 volatile byte environment_temperature, environment_humidity;
 
-volatile byte i2cRegister = 0xff; // register to read from / write to
+volatile byte i2cRegister = 0xff;  // register to read from / write to
 
 #define MODULE_REGISTER(module) ((Module ## module) * 0x10)
 
@@ -69,7 +69,7 @@ void attachArm(boolean attach) {
     MODULE_READY(Arm);
   } else {
     // do not "return" if not ready, because we can detach at any moment
-    MODULE_BUSY(Arm,);
+    MODULE_BUSY(Arm,);  // NOLINT(whitespace/comma)
     ArmBasePan.detach();
     ArmBaseTilt.detach();
     ArmElbow.detach();
@@ -85,13 +85,13 @@ void attachTilt(boolean attach) {
     MODULE_READY(Tilt);
   } else {
     // do not "return" if not ready, because we can detach at any moment
-    MODULE_BUSY(Tilt,);
+    MODULE_BUSY(Tilt,);  // NOLINT(whitespace/comma)
     Tilt.detach();
   }
 }
 
 void setup() {
-  Wire.begin(I2CAddress); // join i2c channel
+  Wire.begin(I2CAddress);  // join i2c channel
   Wire.onReceive(i2cReceive);
   MODULE_READY(Command);
   Wire.onRequest(i2cRequest);
@@ -120,7 +120,7 @@ void boardCommand(byte value) {
   switch (value) {
   case CommandMeasureEnvironment:
     // an indicator for the main loop()
-    MODULE_BUSY(EnvironmentSensor,);
+    MODULE_BUSY(EnvironmentSensor,);  // NOLINT(whitespace/comma)
     break;
   case CommandSleep:
     attachArm(false);
@@ -164,7 +164,7 @@ void i2cReceive(int count) {
 
 void writeWord(uint16_t value) {
   value = (value << 8) | (value >> 8);
-  Wire.write((byte *)(&value), sizeof(value));
+  Wire.write(reinterpret_cast<byte *>(&value), sizeof(value));
 }
 
 void i2cRequest() {

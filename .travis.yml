@@ -24,6 +24,8 @@ script:
     # Raspberry Pi part
     - eval "$(curl https://raw.githubusercontent.com/dasfoo/travis/master/install-protoc.sh)"
     - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh
+    # Common arduino part
+    - curl https://raw.githubusercontent.com/dasfoo/travis/master/cpp.sh | sh -s bb/* mc/*
     # BotBoarduino part
     - platformio ci --board=diecimilaatmega328 bb
     # MotorController part
