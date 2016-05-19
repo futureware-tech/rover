@@ -6,47 +6,47 @@
 // 0, 1, -1 -- normal deltas
 // -0 -- failure (missed value?)
 int8_t encoderDelta[2][2][2][2] = {
-  { // pin1 was LOW
-    { // pin2 was LOW
-      { // pin1 is LOW
-        0, // pin2 is LOW
-        1, // pin2 is HIGH
+  {  // pin1 was LOW
+    {  // pin2 was LOW
+      {  // pin1 is LOW
+        0,  // pin2 is LOW
+        1,  // pin2 is HIGH
       },
-      { // pin1 is HIGH
-        -1, // pin2 is LOW
-        -0, // pin2 is HIGH
+      {  // pin1 is HIGH
+        -1,  // pin2 is LOW
+        -0,  // pin2 is HIGH
       },
     },
-    { // pin2 was HIGH
-      { // pin1 is LOW
-        -1, // pin2 is LOW
-        0,  // pin2 is HIGH
+    {  // pin2 was HIGH
+      {  // pin1 is LOW
+        -1,  // pin2 is LOW
+        0,   // pin2 is HIGH
       },
-      { // pin1 is HIGH
-        -0, // pin2 is LOW
-        1,  // pin2 is HIGH
+      {  // pin1 is HIGH
+        -0,  // pin2 is LOW
+        1,   // pin2 is HIGH
       },
     },
   },
-  { // pin1 was HIGH
-    { // pin2 was LOW
-      { // pin1 is LOW
-        1,  // pin2 is LOW
-        -0, // pin2 is HIGH
+  {  // pin1 was HIGH
+    {  // pin2 was LOW
+      {  // pin1 is LOW
+        1,   // pin2 is LOW
+        -0,  // pin2 is HIGH
       },
-      { // pin1 is HIGH
-        0,  // pin2 is LOW
-        -1, // pin2 is HIGH
+      {  // pin1 is HIGH
+        0,   // pin2 is LOW
+        -1,  // pin2 is HIGH
       },
     },
-    { // pin2 was HIGH
-      { // pin1 is LOW
-        -0, // pin2 is LOW
-        -1, // pin2 is HIGH
+    {  // pin2 was HIGH
+      {  // pin1 is LOW
+        -0,  // pin2 is LOW
+        -1,  // pin2 is HIGH
       },
-      { // pin1 is HIGH
-        1, // pin2 is LOW
-        0, // pin2 is HIGH
+      {  // pin1 is HIGH
+        1,  // pin2 is LOW
+        0,  // pin2 is HIGH
       },
     },
   },
@@ -57,14 +57,14 @@ enum {
   PinMotorRight = 11,
 };
 
-long encoderValue[4] = { 0 };
+int32_t encoderValue[4] = { 0 };
 int previousPinValue[EncoderPins];
 
 Servo left, right;
 
 volatile boolean brake = false;
 
-volatile byte i2cRegister = 0xff; // register to read from / write to
+volatile byte i2cRegister = 0xff;  // register to read from / write to
 
 void attachMotors(boolean attach) {
   if (attach) {
@@ -102,7 +102,7 @@ void loop() {
     previousPinValue[i] = newPin1Value;
     previousPinValue[i+1] = newPin2Value;
   }
-  // TODO: check brake, millis() etc
+  // TODO(dotdoom): check brake, millis() etc
 }
 
 void i2cReceive(int count) {
@@ -140,6 +140,7 @@ void i2cReceive(int count) {
 void i2cRequest() {
   byte encoder = (byte)(i2cRegister-1);
   if (encoder <= 3) {
-    Wire.write((byte*)(&encoderValue[encoder]), sizeof(encoderValue[encoder]));
+    Wire.write(reinterpret_cast<byte*>(&encoderValue[encoder]),
+        sizeof(encoderValue[encoder]));
   }
 }
