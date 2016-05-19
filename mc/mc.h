@@ -5,6 +5,9 @@
  * file.
  */
 
+#ifndef MC_MC_H_
+#define MC_MC_H_
+
 enum {
   I2CAddress = 0x43,
 };
@@ -41,9 +44,12 @@ enum {
   // 4-byte registers to read encoder values from
   RegisterEncoderLeftFront = ((PinEncoderLeftFront1 - MinEncoderPin) >> 1) + 1,
   RegisterEncoderLeftBack = ((PinEncoderLeftBack1 - MinEncoderPin) >> 1) + 1,
-  RegisterEncoderRightFront = ((PinEncoderRightFront1 - MinEncoderPin) >> 1) + 1,
+  RegisterEncoderRightFront =
+      ((PinEncoderRightFront1 - MinEncoderPin) >> 1) + 1,
   RegisterEncoderRightBack = ((PinEncoderRightBack1 - MinEncoderPin) >> 1) + 1,
 
   RegisterMotorLeft,
   RegisterMotorRight,
 };
+
+#endif  // MC_MC_H_
