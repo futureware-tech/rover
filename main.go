@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 
 	pb "github.com/dasfoo/rover/proto"
 )
@@ -23,6 +24,12 @@ var (
 	board  *bb.BB
 	motors *mc.MC
 )
+
+func getError(e error) error {
+	errf := grpc.Errorf // Confuse `go vet' to not check this `Errorf' call. :(
+	// See https://github.com/grpc/grpc-go/issues/90
+	return errf(codes.Unavailable, "%s", e.Error())
+}
 
 // MoveRover implements
 func (s *server) MoveRover(ctx context.Context,
@@ -41,7 +48,7 @@ func (s *server) GetBatteryPercentage(ctx context.Context,
 	var batteryPercentage byte
 	var e error
 	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
-		return nil, e
+		return nil, getError(e)
 	}
 	return &pb.BatteryPercentageResponse{
 		Battery: int32(batteryPercentage),
@@ -53,7 +60,7 @@ func (s *server) GetAmbientLight(ctx context.Context,
 	var light uint16
 	var e error
 	if light, e = board.GetAmbientLight(); e != nil {
-		return nil, e
+		return nil, getError(e)
 	}
 	return &pb.AmbientLightResponse{
 		Light: int32(light),
@@ -65,10 +72,10 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	var t, h byte
 	var e error
 	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
-		return nil, e
+		return nil, getError(e)
 	}
 	return &pb.TemperatureAndHumidityResponse{
-		Temperature: int32(t), // TODO: check byte in proto
+		Temperature: int32(t),
 		Humidity:    int32(h),
 	}, nil
 }
@@ -78,16 +85,16 @@ func (s *server) ReadEncoders(ctx context.Context,
 	var leftFront, leftBack, rightFront, rightBack int32
 	var e error
 	if leftFront, e = motors.ReadEncoder(mc.EncoderLeftFront); e != nil {
-		return nil, e
+		return nil, getError(e)
 	}
 	if leftBack, e = motors.ReadEncoder(mc.EncoderLeftBack); e != nil {
-		return nil, e
+		return nil, getError(e)
 	}
 	if rightFront, e = motors.ReadEncoder(mc.EncoderRightFront); e != nil {
-		return nil, e
+		return nil, getError(e)
 	}
 	if rightBack, e = motors.ReadEncoder(mc.EncoderRightBack); e != nil {
-		return nil, e
+		return nil, getError(e)
 	}
 	return &pb.ReadEncodersResponse{
 		LeftFront:  leftFront,
