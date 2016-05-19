@@ -1,3 +1,6 @@
+#ifndef BB_MUSIC_H_
+#define BB_MUSIC_H_
+
 /*************************************************
  * Public Constants
  *************************************************/
@@ -131,3 +134,5 @@ void play(byte pin, const uint16_t melody[][2], byte size) {
     noTone(pin);
   }
 }
+
+#endif  // BB_MUSIC_H_

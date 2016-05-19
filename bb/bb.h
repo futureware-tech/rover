@@ -7,6 +7,9 @@
  * file.
  */
 
+#ifndef BB_BB_H_
+#define BB_BB_H_
+
 enum {
   MinTilt = 30,
   MaxTilt = 150,
@@ -55,3 +58,5 @@ enum {
   ModuleArmWristTilt,
   ModuleArmGrip,
 };
+
+#endif  // BB_BB_H_
