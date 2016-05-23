@@ -4,28 +4,6 @@
 
 set -e
 
-# Shared functions
-################################################################################
-
-# run_with_timeout <timeout> <command>...
-run_with_timeout() {
-	run_timeout=$1
-	shift
-	"$@" &
-	command_pid=$!
-	sleep "$run_timeout" &
-	wait -n "$command_pid" "$!"
-	kill "$!" 2>/dev/null || true
-	if kill -s SIGTERM "$command_pid" 2>/dev/null; then
-		sleep 1
-		kill -s SIGKILL "$command_pid" 2>/dev/null || true
-		echo "$@" took over "$run_timeout" to complete and has been killed
-		return 1
-	else
-		return 0
-	fi
-}
-
 # SIM800 support functions
 ################################################################################
 
@@ -85,7 +63,7 @@ connect_sim800() {
 	# give sim800 a chance to register on the network
 	sleep 30
 	echo connecting sim800 on "$PON_PEER"
-	run_with_timeout 10 pon "$PON_PEER" || true
+	timeout -k 1 10 pon "$PON_PEER" || true
 }
 
 # WLAN functions
