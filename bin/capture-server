@@ -1,13 +1,20 @@
 #!/bin/sh
 
-# An HTTP server emulator which starts a capture
+# An http(s) server emulator which starts a capture
 # once an incoming connection is established.
 
 MYDIR="$(cd "$(dirname "$0")" || exit; pwd)"
 
-[ "$1" = "-s" ] ||
-	exec socat TCP-LISTEN:"${1?listen port required}",reuseaddr,fork \
-		EXEC:"$MYDIR/capture-server -s"
+if [ $# -gt 0 ]; then
+	listen_command="-listen:$1,reuseaddr,fork"
+	if [ -n "$CAPTURE_CERT" ]; then
+		tls_options="cert=${CAPTURE_CERT?},key=${CAPTURE_KEY?},verify=0"
+		listen_command="openssl$listen_command,$tls_options"
+	else
+		listen_command="tcp$listen_command"
+	fi
+	exec socat "$listen_command" EXEC:"$MYDIR/$(basename "$0")"
+fi
 
 ACTUAL_CAPTURE_PASSWORD="${CAPTURE_PASSWORD}"
 CAPTURE_PASSWORD=""

@@ -68,6 +68,7 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
     - autoswitch sim800 and wlan0: `autoswitch-wlan-sim800@<isp>.service`.
     - camera streaming server: `capture-server@<port>.service`.
       Don't forget to set `CAPTURE_PASSWORD` in `$HOME/.config/capture-server`.
+      You can also set `CAPTURE_CERT` and `CAPTURE_KEY` to enable https mode.
     - camera streaming reverse tunnel (underscore means it's open to the world):
       `reverse-tunnel@<remote_host>:<port>_.service`
     - rover API server: `rover.service`
