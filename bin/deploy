@@ -1,6 +1,4 @@
-#!/bin/sh
-
-set -e
+#!/bin/sh -e
 
 deploy_env() {
 	# TODO: use arm-linux-gnueabihf-gcc (note the 'hf'), take CGO_CFLAGS from
@@ -41,11 +39,15 @@ deploy_push() {
 		package="$(basename "$package_path")"
 		deploy_copy "$package"
 		deploy_ssh "
-			sudo sh -c '
+			sudo sh -ec '
 				ln -sf \$PWD/$package/systemd/rover.service \
 					/etc/systemd/system/multi-user.target.wants/
 				systemctl daemon-reload
-				systemctl restart $package
+				# restarting will break reverse-tunnel together with our
+				# ssh connection; do it in background.
+				nohup sh -c \
+					\"sleep 1; systemctl --no-block restart $package\" \
+					</dev/null >/dev/null 2>&1 &
 			'
 		"
 	)

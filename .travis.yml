@@ -33,22 +33,30 @@ script:
 # Shell part
 - curl https://raw.githubusercontent.com/dasfoo/travis/master/shell.sh | sh -s bin/*
 
-after_success:
-- echo "$REMOTE_HOST_KEY" >>$HOME/.ssh/known_hosts
-- eval "$(ssh-agent)"
-- ssh-add <(echo "$REMOTE_HOST_LOGIN_KEY" | sed 's/|/\n/g')
-- >
-    if [ "$TRAVIS_GO_VERSION" != "tip" ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
-      tar -C "$GOPATH" -czf - src |
-      ssh -q "$REMOTE_HOST" "
-        rm -rf \$GOPATH/src &&
-        mkdir -p \$GOPATH &&
-        tar -xzf - -C \$GOPATH &&
-        \$GOPATH/src/github.com/${TRAVIS_REPO_SLUG}/bin/deploy push
-      ";
+before_deploy:
+# Generate deploy script
+- |
+    cat >travis-deploy.sh <<'SHELL'
+    set -e
+    if [ "${TRAVIS_GO_VERSION?}" != "tip" ]; then
+      echo "${REMOTE_HOST_KEY?}" >>$HOME/.ssh/known_hosts
+      eval "$(ssh-agent)"
+      ssh-add <(sed 's/|/\n/g' <<<"${REMOTE_HOST_LOGIN_KEY?}")
+      tar -C "${GOPATH?}" -czf - src |
+      ssh -q "${REMOTE_HOST?}" "
+          rm -rf \$GOPATH/src &&
+          mkdir -p \$GOPATH &&
+          tar -xzf - -C \$GOPATH &&
+          \$GOPATH/src/github.com/${TRAVIS_REPO_SLUG?}/bin/deploy push
+        "
     else
-        echo Not deploying PR or Go tip;
+        echo "Not deploying for Go tip build."
     fi
+
+deploy:
+  provider: script
+  skip_cleanup: true
+  script: bash travis-deploy.sh
 
 branches:
   only:
