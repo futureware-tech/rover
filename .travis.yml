@@ -1,55 +1,55 @@
 language: go
 
 go:
-    - 1.6
-    - tip
+- 1.6
+- tip
 
 cache:
-    directories:
-        - ~/.platformio
+  directories:
+  - ~/.platformio
 
 addons:
-    apt:
-        packages:
-        - libi2c-dev
-        # shellcheck is not in Travis' Ubuntu
-        #- shellcheck
+  apt:
+    packages:
+    - libi2c-dev
+    # shellcheck is not in Travis' Ubuntu
+    #- shellcheck
 
 install:
-    - pip install --user --upgrade platformio
-    - platformio lib install 19 580 # Adafruit-DHT, EasyVR
-    - platformio lib update
+- pip install --user --upgrade platformio
+- platformio lib install 19 580 # Adafruit-DHT, EasyVR
+- platformio lib update
 
 script:
-    # Raspberry Pi part
-    - eval "$(curl https://raw.githubusercontent.com/dasfoo/travis/master/install-protoc.sh)"
-    - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh
-    # Common arduino part
-    - curl https://raw.githubusercontent.com/dasfoo/travis/master/cpp.sh | sh -s bb/* mc/*
-    # BotBoarduino part
-    - platformio ci --board=diecimilaatmega328 bb
-    # MotorController part
-    - platformio ci --board=diecimilaatmega328 mc
-    # Shell part
-    - curl https://raw.githubusercontent.com/dasfoo/travis/master/shell.sh | sh -s bin/*
+# Raspberry Pi part
+- eval "$(curl https://raw.githubusercontent.com/dasfoo/travis/master/install-protoc.sh)"
+- curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh
+# Common arduino part
+- curl https://raw.githubusercontent.com/dasfoo/travis/master/cpp.sh | sh -s bb/* mc/*
+# BotBoarduino part
+- platformio ci --board=diecimilaatmega328 bb
+# MotorController part
+- platformio ci --board=diecimilaatmega328 mc
+# Shell part
+- curl https://raw.githubusercontent.com/dasfoo/travis/master/shell.sh | sh -s bin/*
 
 after_success:
-    - echo "$REMOTE_HOST_KEY" >>$HOME/.ssh/known_hosts
-    - eval "$(ssh-agent)"
-    - ssh-add <(echo "$REMOTE_HOST_LOGIN_KEY" | sed 's/|/\n/g')
-    - >
-        if [ "$TRAVIS_GO_VERSION" != "tip" ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
-          tar -C "$GOPATH" -czf - src |
-          ssh -q "$REMOTE_HOST" "
-            rm -rf \$GOPATH/src &&
-            mkdir -p \$GOPATH &&
-            tar -xzf - -C \$GOPATH &&
-            \$GOPATH/src/github.com/${TRAVIS_REPO_SLUG}/bin/deploy push
-          ";
-        else
-            echo Not deploying PR or Go tip;
-        fi
+- echo "$REMOTE_HOST_KEY" >>$HOME/.ssh/known_hosts
+- eval "$(ssh-agent)"
+- ssh-add <(echo "$REMOTE_HOST_LOGIN_KEY" | sed 's/|/\n/g')
+- >
+    if [ "$TRAVIS_GO_VERSION" != "tip" ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
+      tar -C "$GOPATH" -czf - src |
+      ssh -q "$REMOTE_HOST" "
+        rm -rf \$GOPATH/src &&
+        mkdir -p \$GOPATH &&
+        tar -xzf - -C \$GOPATH &&
+        \$GOPATH/src/github.com/${TRAVIS_REPO_SLUG}/bin/deploy push
+      ";
+    else
+        echo Not deploying PR or Go tip;
+    fi
 
 branches:
-    only:
-        - master
+  only:
+  - master
