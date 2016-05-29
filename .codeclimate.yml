@@ -1,0 +1,13 @@
+engines:
+  shellcheck:
+    enabled: true
+  fixme:
+    enabled: true
+  gofmt:
+    enabled: true
+  golint:
+    enabled: true
+  govet:
+    enabled: true
+  gnu-complexity:
+    enabled: true
