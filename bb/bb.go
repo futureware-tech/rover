@@ -33,12 +33,12 @@ func (se *StatusError) Error() string {
 
 // BB is a control interface for BotBoarduino part of the project
 type BB struct {
-	bus     *i2c.Bus
+	bus     i2c.Bus
 	address byte
 }
 
 // NewBB creates a new instance of BotBoarduino to use
-func NewBB(bus *i2c.Bus, addr byte) *BB {
+func NewBB(bus i2c.Bus, addr byte) *BB {
 	return &BB{
 		bus:     bus,
 		address: addr,
