@@ -116,7 +116,7 @@ func main() {
 		log.Fatal(err)
 	} else {
 		// Silence i2c bus log
-		//bus.Log = func(string, ...interface{}) {}
+		//bus.SetLogger(func(string, ...interface{}) {})
 
 		board = bb.NewBB(bus, bb.Address)
 		motors = mc.NewMC(bus, mc.Address)
