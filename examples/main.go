@@ -36,7 +36,7 @@ func main() {
 		return
 	}
 
-	bus.Log = func(string, ...interface{}) {}
+	bus.SetLogger(func(string, ...interface{}) {})
 
 	board := bb.NewBB(bus, bb.Address)
 	_ = board.Wake()

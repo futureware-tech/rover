@@ -17,12 +17,12 @@ const MaxSpeed = 90
 
 // MC is a control interface for Motor Controller part of the project
 type MC struct {
-	bus     *i2c.Bus
+	bus     i2c.Bus
 	address byte
 }
 
 // NewMC creates a new instance of BotBoarduino to use
-func NewMC(bus *i2c.Bus, addr byte) *MC {
+func NewMC(bus i2c.Bus, addr byte) *MC {
 	return &MC{
 		bus:     bus,
 		address: addr,
