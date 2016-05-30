@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 
 	pb "github.com/dasfoo/rover/proto"
 )
@@ -23,6 +24,12 @@ type server struct{}
 var (
 	board  *bb.BB
 	motors *mc.MC
+
+	tls      = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
+	laddr    = flag.String("laddr", "", "laddr")
+	test     = flag.Bool("test", false, "Flag for startup script")
+	certFile = flag.String("cert_file", "", "The TLS cert file")
+	keyFile  = flag.String("key_file", "", "The TLS key file")
 )
 
 func getError(e error) error {
@@ -104,11 +111,36 @@ func (s *server) ReadEncoders(ctx context.Context,
 	}, nil
 }
 
-func main() {
+func setServerOptions() ([]grpc.ServerOption, error) {
+	var opts []grpc.ServerOption
+	if *tls {
+		creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
+		if err != nil {
+			return opts, err
+		}
+		return []grpc.ServerOption{grpc.Creds(creds)}, nil
+	}
+	return opts, nil
+}
 
+func startServer() error {
+	lis, err := net.Listen("tcp", *laddr)
+	if err != nil {
+		log.Println("Failed to listen:", err)
+		return err
+	}
+	opts, err := setServerOptions()
+	if err != nil {
+		log.Println("Failed to setup Server Options:", err)
+		return err
+	}
+	s := grpc.NewServer(opts...)
+	pb.RegisterRoverServiceServer(s, &server{})
+	return s.Serve(lis)
+}
+
+func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
-	var laddr = flag.String("laddr", "", "laddr")
-	var test = flag.Bool("test", false, "Flag for startup script")
 	flag.Parse()
 	log.Println("Properties from command line:", *laddr)
 	log.Println("Flag for startup script", *test)
@@ -121,14 +153,7 @@ func main() {
 		board = bb.NewBB(bus, bb.Address)
 		motors = mc.NewMC(bus, mc.Address)
 	}
-	lis, err := net.Listen("tcp", *laddr)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	log.Println("Server started")
-	s := grpc.NewServer()
-	pb.RegisterRoverServiceServer(s, &server{})
-	if err := s.Serve(lis); err != nil {
-		log.Fatal(err)
+	if err := startServer(); err != nil {
+		log.Println("Failed to start server :", err)
 	}
 }
