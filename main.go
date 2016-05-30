@@ -130,7 +130,7 @@ func startServer() error {
 	}
 	opts, err := setServerOptions()
 	if err != nil {
-		log.Println("Failed to setun Server Options:", err)
+		log.Println("Failed to setup Server Options:", err)
 	}
 	s := grpc.NewServer(opts...)
 	pb.RegisterRoverServiceServer(s, &server{})
