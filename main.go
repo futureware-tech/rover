@@ -126,7 +126,7 @@ func setServerOptions() ([]grpc.ServerOption, error) {
 func startServer() error {
 	lis, err := net.Listen("tcp", *laddr)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Println("Failed to listen:", err)
 	}
 	opts, err := setServerOptions()
 	if err != nil {
