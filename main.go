@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/grpclog"
 
 	pb "github.com/dasfoo/rover/proto"
 )
@@ -112,6 +111,35 @@ func (s *server) ReadEncoders(ctx context.Context,
 	}, nil
 }
 
+func setServerOptions() ([]grpc.ServerOption, error) {
+	var opts []grpc.ServerOption
+	if *tls {
+		creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
+		if err != nil {
+			return opts, err
+		}
+		return []grpc.ServerOption{grpc.Creds(creds)}, nil
+	}
+	return opts, nil
+}
+
+func startServer() error {
+	lis, err := net.Listen("tcp", *laddr)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	opts, err := setServerOptions()
+	if err != nil {
+		log.Println("Failed to setun Server Options:", err)
+	}
+	s := grpc.NewServer(opts...)
+	pb.RegisterRoverServiceServer(s, &server{})
+	if err := s.Serve(lis); err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
 	flag.Parse()
@@ -126,23 +154,7 @@ func main() {
 		board = bb.NewBB(bus, bb.Address)
 		motors = mc.NewMC(bus, mc.Address)
 	}
-	lis, err := net.Listen("tcp", *laddr)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	log.Println("Server started")
-
-	var opts []grpc.ServerOption
-	if *tls {
-		creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
-		if err != nil {
-			grpclog.Fatalf("Failed to generate credentials %v", err)
-		}
-		opts = []grpc.ServerOption{grpc.Creds(creds)}
-	}
-	s := grpc.NewServer(opts...)
-	pb.RegisterRoverServiceServer(s, &server{})
-	if err := s.Serve(lis); err != nil {
-		log.Fatal(err)
+	if err := startServer(); err != nil {
+		log.Println("Failed to start server :", err)
 	}
 }
