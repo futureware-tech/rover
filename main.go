@@ -127,10 +127,12 @@ func startServer() error {
 	lis, err := net.Listen("tcp", *laddr)
 	if err != nil {
 		log.Println("Failed to listen:", err)
+		return err
 	}
 	opts, err := setServerOptions()
 	if err != nil {
 		log.Println("Failed to setup Server Options:", err)
+		return err
 	}
 	s := grpc.NewServer(opts...)
 	pb.RegisterRoverServiceServer(s, &server{})
