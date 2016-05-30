@@ -134,10 +134,8 @@ func startServer() error {
 	}
 	s := grpc.NewServer(opts...)
 	pb.RegisterRoverServiceServer(s, &server{})
-	if err := s.Serve(lis); err != nil {
-		return err
-	}
-	return nil
+	err = s.Serve(lis)
+	return err
 }
 
 func main() {
