@@ -13,6 +13,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/grpclog"
 
 	pb "github.com/dasfoo/rover/proto"
 )
@@ -23,6 +25,12 @@ type server struct{}
 var (
 	board  *bb.BB
 	motors *mc.MC
+
+	tls      = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
+	laddr    = flag.String("laddr", "", "laddr")
+	test     = flag.Bool("test", false, "Flag for startup script")
+	certFile = flag.String("cert_file", "", "The TLS cert file")
+	keyFile  = flag.String("key_file", "", "The TLS key file")
 )
 
 func getError(e error) error {
@@ -105,10 +113,7 @@ func (s *server) ReadEncoders(ctx context.Context,
 }
 
 func main() {
-
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
-	var laddr = flag.String("laddr", "", "laddr")
-	var test = flag.Bool("test", false, "Flag for startup script")
 	flag.Parse()
 	log.Println("Properties from command line:", *laddr)
 	log.Println("Flag for startup script", *test)
@@ -126,7 +131,16 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	log.Println("Server started")
-	s := grpc.NewServer()
+
+	var opts []grpc.ServerOption
+	if *tls {
+		creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
+		if err != nil {
+			grpclog.Fatalf("Failed to generate credentials %v", err)
+		}
+		opts = []grpc.ServerOption{grpc.Creds(creds)}
+	}
+	s := grpc.NewServer(opts...)
 	pb.RegisterRoverServiceServer(s, &server{})
 	if err := s.Serve(lis); err != nil {
 		log.Fatal(err)
