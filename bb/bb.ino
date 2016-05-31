@@ -174,14 +174,10 @@ void i2cRequest() {
     writeWord(status);
     break;
   case MODULE_REGISTER(Board) + ModuleBoardBattery:
-    value = analogRead(AnalogPinBattery);
-    Wire.write((byte)(constrain(map(value,
-                                    (2.0 / 5.0 * 1023.0), (3.5 / 5.0 * 1023.0),
-                                    0, 100), 0, 100)));
+    writeWord(analogRead(AnalogPinBattery));
     break;
   case MODULE_REGISTER(LightSensor):
-    value = analogRead(AnalogPinLightSensor);
-    writeWord(value);
+    writeWord(analogRead(AnalogPinLightSensor));
     break;
   case MODULE_REGISTER(EnvironmentSensor) + ModuleEnvironmentSensorTemperature:
     Wire.write(environment_temperature);

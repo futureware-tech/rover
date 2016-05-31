@@ -98,7 +98,9 @@ func (bb *BB) GetStatus() (uint16, error) {
 // GetBatteryPercentage returns estimated battery charge, in percent
 func (bb *BB) GetBatteryPercentage() (byte, error) {
 	// TODO: check status
-	return bb.bus.ReadByteFromReg(bb.address, register(ModuleBoard)+moduleBoardBattery)
+	v, e := bb.bus.ReadWordFromReg(bb.address, register(ModuleBoard)+moduleBoardBattery)
+	// TODO: calibration
+	return byte(v >> 2), e
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
