@@ -26,6 +26,7 @@ script:
 - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh
 # Common arduino part
 - curl https://raw.githubusercontent.com/dasfoo/travis/master/cpp.sh | sh -s bb/* mc/*
+- export PLATFORMIO_BUILD_FLAGS="-Wall -Werror"
 # BotBoarduino part
 - platformio ci --board=diecimilaatmega328 bb
 # MotorController part
