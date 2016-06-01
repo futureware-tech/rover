@@ -69,17 +69,18 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
     - camera streaming server: `capture-server@<port>.service`.
       Don't forget to set `CAPTURE_PASSWORD` in `$HOME/.config/capture-server`.
       You can also set `CAPTURE_CERT` and `CAPTURE_KEY` to enable https mode.
-    - camera streaming reverse tunnel (underscore means it's open to the world):
-      `reverse-tunnel@<remote_host>:<port>_.service`
     - rover API server: `rover.service`
     - reverse tunnel for ssh, camera streaming server, and rover API server:
-      `reverse-tunnel@<remote_host>.service` and its config (3 examples):
+      `reverse-tunnel@<remote_host>.service` and its config. Each config line
+      consists of 2 numbers: a remote port and a local port.
+      A port is bound to "localhost" interface by default; a colon (":") prefix
+      will bind it to all interfaces, making it accessible externally. Examples:
       
       ```
       $ cat $HOME/.config/reverse-tunnel/<remote_host>
-      <remote_ssh_port> 22
-      :<remote_camera_server_port> <local_camera_server_port>
-      :<local_and_remote_rover_API_port>
+      <internal_only_remote_port_for_ssh> 22
+      :<external_remote_port_for_camera_server> <local_camera_server_port>
+      :<external_remote_port_for_rover_API> <local_rover_API_port>
       ```
 
 ## `/etc/fstab`
