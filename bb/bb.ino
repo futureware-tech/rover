@@ -133,33 +133,35 @@ void boardCommand(byte value) {
   }
 }
 
-void i2cReceive(int count) {
+void i2cReceive(int bytesReceived) {
   i2cRegister = Wire.read();
-  if (count == 1) {
-    return;
-  }
-  byte value8 = Wire.read();
+  if (bytesReceived > 1) {
+    byte value8 = Wire.read();
 
-  switch (i2cRegister) {
-  case MODULE_REGISTER(Command):
-    boardCommand(value8);
-    break;
-  case MODULE_REGISTER(Tilt):
-    Tilt.write(constrain(value8, MinTilt, MaxTilt));
-    break;
+    switch (i2cRegister) {
+    case MODULE_REGISTER(Command):
+      boardCommand(value8);
+      break;
+    case MODULE_REGISTER(Tilt):
+      Tilt.write(constrain(value8, MinTilt, MaxTilt));
+      break;
 
 #define SERVO_CASE_WITH_ADDITION(module, addition, value) \
-  case MODULE_REGISTER(module) + Module ## module ## addition: \
-    module ## addition.write(value); \
-    break;
+    case MODULE_REGISTER(module) + Module ## module ## addition: \
+      module ## addition.write(value); \
+      break;
 
-  SERVO_CASE_WITH_ADDITION(Arm, BasePan, value8)
-  SERVO_CASE_WITH_ADDITION(Arm, BaseTilt, value8)
-  SERVO_CASE_WITH_ADDITION(Arm, Elbow, value8)
-  SERVO_CASE_WITH_ADDITION(Arm, WristRotate, value8)
-  SERVO_CASE_WITH_ADDITION(Arm, WristTilt, value8)
-  SERVO_CASE_WITH_ADDITION(Arm, Grip, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, BasePan, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, BaseTilt, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, Elbow, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, WristRotate, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, WristTilt, value8)
+    SERVO_CASE_WITH_ADDITION(Arm, Grip, value8)
+    }
   }
+  // onReceive will not be invoked unless rxBuffer is empty.
+  // Clean it up manually.
+  while (Wire.available()) { Wire.read(); }
 }
 
 void writeWord(uint16_t value) {
@@ -168,7 +170,6 @@ void writeWord(uint16_t value) {
 }
 
 void i2cRequest() {
-  int value;
   switch (i2cRegister) {
   case MODULE_REGISTER(Board) + ModuleBoardStatus:
     writeWord(status);
