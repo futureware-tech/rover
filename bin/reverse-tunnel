@@ -14,7 +14,6 @@ while read -r REMOTE_PORT LOCAL_PORT; do
 		REMOTE_INTERFACE_IPV6=::
 		REMOTE_PORT="${REMOTE_PORT#:}"
 	fi
-	LOCAL_PORT="${LOCAL_PORT:-${REMOTE_PORT}}"
 
 	local="localhost:${LOCAL_PORT?}"
 	cmd="$cmd -R ${REMOTE_INTERFACE?}:${REMOTE_PORT?}:$local"
