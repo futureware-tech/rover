@@ -115,36 +115,38 @@ void loop() {
   // TODO(dotdoom): check brake, millis() etc
 }
 
-void i2cReceive(int count) {
+void i2cReceive(int bytesReceived) {
   i2cRegister = Wire.read();
-  if (count == 1) {
-    return;
-  }
-  byte value8 = Wire.read();
-  switch (i2cRegister) {
-  case RegisterCommand:
-    switch (value8) {
-    case CommandBrake:
-      brake = true;
+  if (bytesReceived > 1) {
+    byte value8 = Wire.read();
+    switch (i2cRegister) {
+    case RegisterCommand:
+      switch (value8) {
+      case CommandBrake:
+        brake = true;
+        break;
+      case CommandReleaseBrake:
+        brake = false;
+        break;
+      case CommandSleep:
+        attachMotors(false);
+        break;
+      case CommandWake:
+        attachMotors(true);
+        break;
+      }
       break;
-    case CommandReleaseBrake:
-      brake = false;
+    case RegisterMotorLeft:
+      left.write(value8);
       break;
-    case CommandSleep:
-      attachMotors(false);
-      break;
-    case CommandWake:
-      attachMotors(true);
+    case RegisterMotorRight:
+      right.write(value8);
       break;
     }
-    break;
-  case RegisterMotorLeft:
-    left.write(value8);
-    break;
-  case RegisterMotorRight:
-    right.write(value8);
-    break;
   }
+  // onReceive will not be invoked unless rxBuffer is empty.
+  // Clean it up manually.
+  while (Wire.available()) { Wire.read(); }
 }
 
 void i2cRequest() {
