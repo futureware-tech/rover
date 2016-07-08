@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"flag"
 	"log"
 	"net"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/dasfoo/i2c"
@@ -14,6 +18,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 
 	pb "github.com/dasfoo/rover/proto"
 )
@@ -25,11 +30,12 @@ var (
 	board  *bb.BB
 	motors *mc.MC
 
-	tls      = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
-	laddr    = flag.String("laddr", "", "laddr")
-	test     = flag.Bool("test", false, "Flag for startup script")
-	certFile = flag.String("cert_file", "", "The TLS cert file")
-	keyFile  = flag.String("key_file", "", "The TLS key file")
+	tls        = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
+	laddr      = flag.String("laddr", "", "laddr")
+	test       = flag.Bool("test", false, "Flag for startup script")
+	certFile   = flag.String("cert_file", "", "The TLS cert file")
+	keyFile    = flag.String("key_file", "", "The TLS key file")
+	configFile = flag.String("config_file", "", "The file with password for validation user")
 )
 
 func getError(e error) error {
@@ -41,6 +47,10 @@ func getError(e error) error {
 // MoveRover implements
 func (s *server) MoveRover(ctx context.Context,
 	in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
+	if err := validateUser(ctx); err != nil {
+		log.Printf("UserValid: %s", err)
+		return nil, err
+	}
 	_ = motors.Left(int8(in.Left)) //TODO error check
 	_ = motors.Right(int8(in.Right))
 	time.Sleep(1 * time.Second)
@@ -52,6 +62,10 @@ func (s *server) MoveRover(ctx context.Context,
 
 func (s *server) GetBatteryPercentage(ctx context.Context,
 	in *pb.BatteryPercentageRequest) (*pb.BatteryPercentageResponse, error) {
+	if err := validateUser(ctx); err != nil {
+		log.Printf("UserValid: %s", err)
+		return nil, err
+	}
 	var batteryPercentage byte
 	var e error
 	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
@@ -64,6 +78,10 @@ func (s *server) GetBatteryPercentage(ctx context.Context,
 
 func (s *server) GetAmbientLight(ctx context.Context,
 	in *pb.AmbientLightRequest) (*pb.AmbientLightResponse, error) {
+	if err := validateUser(ctx); err != nil {
+		log.Printf("UserValid: %s", err)
+		return nil, err
+	}
 	var light uint16
 	var e error
 	if light, e = board.GetAmbientLight(); e != nil {
@@ -76,6 +94,10 @@ func (s *server) GetAmbientLight(ctx context.Context,
 
 func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	in *pb.TemperatureAndHumidityRequest) (*pb.TemperatureAndHumidityResponse, error) {
+	if err := validateUser(ctx); err != nil {
+		log.Printf("UserValid: %s", err)
+		return nil, err
+	}
 	var t, h byte
 	var e error
 	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
@@ -87,8 +109,66 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	}, nil
 }
 
+func readPasswordFromFile(filePath string) (string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		nameAndValue := strings.Split(sc.Text(), "=")
+		if nameAndValue[0] == "CAPTURE_PASSWORD" {
+			return nameAndValue[1], nil
+		}
+	}
+	return "", errors.New("Empty file")
+}
+
+func validatePassword(password string) error {
+	pwd, err := readPasswordFromFile(*configFile)
+	if err != nil {
+		return err
+	}
+	if password != pwd {
+		return errors.New("Wrong password for getting data")
+	}
+	return nil
+}
+
+func readAuthFromMetadata(ctx context.Context) (string, error) {
+	const key = "authentication"
+	// FromContext returns error as a bool
+	val, err := metadata.FromContext(ctx)
+	if !err {
+		return "", errors.New("Error appears getting metadata")
+	}
+	return val[key][0], nil
+}
+
+func validateUser(ctx context.Context) error {
+	pwd, err := readAuthFromMetadata(ctx)
+	if err != nil {
+		return err
+	}
+	if err := validatePassword(pwd); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *server) ReadEncoders(ctx context.Context,
 	in *pb.ReadEncodersRequest) (*pb.ReadEncodersResponse, error) {
+
+	if err := validateUser(ctx); err != nil {
+		log.Printf("UserValid: %s", err)
+		return nil, err
+	}
+
 	var leftFront, leftBack, rightFront, rightBack int32
 	var e error
 	if leftFront, e = motors.ReadEncoder(mc.EncoderLeftFront); e != nil {
