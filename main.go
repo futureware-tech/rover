@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
-	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -17,7 +19,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 
 	pb "github.com/dasfoo/rover/proto"
@@ -191,32 +192,46 @@ func (s *server) ReadEncoders(ctx context.Context,
 	}, nil
 }
 
-func setServerOptions() ([]grpc.ServerOption, error) {
-	var opts []grpc.ServerOption
-	if *tls {
-		creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
-		if err != nil {
-			return opts, err
+func routingHandler(grpcHandler http.Handler, otherHandler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO(dotdoom): find & use a constant instead of hardcode for header name and value
+		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
+			grpcHandler.ServeHTTP(w, r)
+		} else {
+			otherHandler.ServeHTTP(w, r)
 		}
-		return []grpc.ServerOption{grpc.Creds(creds)}, nil
-	}
-	return opts, nil
+	})
 }
 
 func startServer() error {
-	lis, err := net.Listen("tcp", *laddr)
-	if err != nil {
-		log.Println("Failed to listen:", err)
-		return err
-	}
-	opts, err := setServerOptions()
-	if err != nil {
-		log.Println("Failed to setup Server Options:", err)
-		return err
-	}
-	s := grpc.NewServer(opts...)
+	s := grpc.NewServer()
 	pb.RegisterRoverServiceServer(s, &server{})
-	return s.Serve(lis)
+	httpSrv := &http.Server{
+		Addr: *laddr,
+		Handler: routingHandler(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// TODO(dotdoom): verify password, set HTTP code if invalid
+			// TODO(dotdoom): add raspistill support for 0 FPS
+			// TODO(dotdoom): comment on what all the parameters mean (copied from bin/capture)
+			raspivid := exec.Command("raspivid",
+				"--nopreview",
+				"--width", "320", // TODO(dotdoom): read from headers
+				"--height", "240", // TODO(dotdoom): read from headers
+				"--vflip", "--hflip",
+				"--timeout", "0",
+				"--framerate", "24", // TODO(dotdoom): read from headers
+				"--vstab",
+				"-o", "-")
+			raspivid.Stdout = w
+			if e := raspivid.Run(); e != nil {
+				// TODO(dotdoom): log, set HTTP code (if no data was sent), print/log stderr
+				fmt.Fprintf(w, "Error: %v", e)
+			}
+		})),
+	}
+	if *tls {
+		return httpSrv.ListenAndServeTLS(*certFile, *keyFile)
+	}
+	return httpSrv.ListenAndServe()
 }
 
 func main() {
