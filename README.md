@@ -66,20 +66,16 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
     - reverse tunnel for ssh: `reverse-tunnel@<remote_host>:22.service`.
       Make sure `ssh <remote_host>` works (doesn't ask for host key / password)
     - autoswitch sim800 and wlan0: `autoswitch-wlan-sim800@<isp>.service`.
-    - camera streaming server: `capture-server@<port>.service`.
-      Don't forget to set `CAPTURE_PASSWORD` in `$HOME/.config/capture-server`.
-      You can also set `CAPTURE_CERT` and `CAPTURE_KEY` to enable https mode.
     - rover API server: `rover.service`
-    - reverse tunnel for ssh, camera streaming server, and rover API server:
+    - reverse tunnel for ssh and rover API server:
       `reverse-tunnel@<remote_host>.service` and its config. Each config line
       consists of 2 numbers: a remote port and a local port.
       A port is bound to "localhost" interface by default; a colon (":") prefix
-      will bind it to all interfaces, making it accessible externally. Examples:
-      
+      will bind it to all interfaces, making it accessible externally. Example:
+
       ```
       $ cat $HOME/.config/reverse-tunnel/<remote_host>
       <internal_only_remote_port_for_ssh> 22
-      :<external_remote_port_for_camera_server> <local_camera_server_port>
       :<external_remote_port_for_rover_API> <local_rover_API_port>
       ```
 
