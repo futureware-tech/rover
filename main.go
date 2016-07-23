@@ -4,16 +4,15 @@ import (
 	"bufio"
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/dasfoo/i2c"
 	"github.com/dasfoo/rover/bb"
+	"github.com/dasfoo/rover/camera"
 	"github.com/dasfoo/rover/mc"
 	"golang.org/x/net/context"
 
@@ -208,25 +207,9 @@ func startServer() error {
 	pb.RegisterRoverServiceServer(s, &server{})
 	httpSrv := &http.Server{
 		Addr: *laddr,
-		Handler: routingHandler(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// TODO(dotdoom): verify password, set HTTP code if invalid
-			// TODO(dotdoom): add raspistill support for 0 FPS
-			// TODO(dotdoom): comment on what all the parameters mean (copied from bin/capture)
-			raspivid := exec.Command("raspivid",
-				"--nopreview",
-				"--width", "320", // TODO(dotdoom): read from headers
-				"--height", "240", // TODO(dotdoom): read from headers
-				"--vflip", "--hflip",
-				"--timeout", "0",
-				"--framerate", "24", // TODO(dotdoom): read from headers
-				"--vstab",
-				"-o", "-")
-			raspivid.Stdout = w
-			if e := raspivid.Run(); e != nil {
-				// TODO(dotdoom): log, set HTTP code (if no data was sent), print/log stderr
-				fmt.Fprintf(w, "Error: %v", e)
-			}
-		})),
+		Handler: routingHandler(s, http.HandlerFunc((&camera.Server{
+			ValidatePassword: validatePassword,
+		}).Handler)),
 	}
 	if *tls {
 		return httpSrv.ListenAndServeTLS(*certFile, *keyFile)
