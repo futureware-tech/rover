@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 )
@@ -12,28 +11,6 @@ import (
 // Server allows serving video stream and pictures over HTTP.
 type Server struct {
 	ValidatePassword func(string) error
-}
-
-func getRaspividCommand(width, height, fps int) *exec.Cmd {
-	return exec.Command("raspivid",
-		"--nopreview", // do not show preview window (the server is headless)
-		"--width", strconv.Itoa(width),
-		"--height", strconv.Itoa(height),
-		"--vflip", "--hflip", // flip the viewport (this brings a normal output)
-		"--timeout", "0", // do not stop video streaming
-		"--framerate", strconv.Itoa(fps),
-		"--vstab", // enable software vertical stabilization
-		"-o", "-")
-}
-
-func getRaspistillCommand(width, height, quality int) *exec.Cmd {
-	return exec.Command("raspistill",
-		"--nopreview",
-		"--width", strconv.Itoa(width),
-		"--height", strconv.Itoa(height),
-		"--vflip", "--hflip",
-		"--quality", strconv.Itoa(quality),
-		"-o", "-")
 }
 
 type request struct {
@@ -97,20 +74,19 @@ func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var captureCommand *exec.Cmd
+	var capturer *Process
 
 	w.Header().Set("Server", "Go (raspivid/raspistill)")
 	if fps > 0 {
 		w.Header().Set("Content-Type", "video/h264")
-		captureCommand = getRaspividCommand(width, height, fps)
+		capturer = NewVideoProcess(width, height, fps)
 	} else {
 		w.Header().Set("Content-Type", "image/jpeg")
-		captureCommand = getRaspistillCommand(width, height, quality)
+		capturer = NewPictureProcess(width, height, quality)
 	}
-	captureCommand.Stdout = w
-	if e := captureCommand.Run(); e != nil {
-		log.Printf("Error executing %s: %v", captureCommand.Path, e)
-		// TODO(dotdoom): send/log stderr
-		req.renderError(http.StatusInternalServerError, e.Error())
+	capturer.Stdout = w
+	if e := capturer.Run(); e != nil {
+		log.Printf("Error executing %s: %s", capturer.Path, e.Error())
+		req.renderError(http.StatusServiceUnavailable, e.Error())
 	}
 }
