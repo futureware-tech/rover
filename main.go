@@ -53,12 +53,20 @@ func (s *server) MoveRover(ctx context.Context,
 		log.Printf("UserValid: %s", err)
 		return nil, err
 	}
-	_ = motors.Left(int8(in.Left)) //TODO error check
-	_ = motors.Right(int8(in.Right))
+	if e := motors.Left(int8(in.Left)); e != nil {
+		return nil, e
+	}
+	if e := motors.Right(int8(in.Right)); e != nil {
+		return nil, e
+	}
 	time.Sleep(1 * time.Second)
 
-	_ = motors.Left(0)
-	_ = motors.Right(0)
+	if e := motors.Left(0); e != nil {
+		return nil, e
+	}
+	if e := motors.Right(0); e != nil {
+		return nil, e
+	}
 	return &pb.RoverWheelResponse{}, nil
 }
 
