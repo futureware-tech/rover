@@ -151,6 +151,14 @@ It might be useful to add `PasswordAuthentication no` to your
 Removing password from `pi` user might make debugging network issues
 (by plugging in a keyboard) a bit harder.
 
+## application
+
+Generate a key for a service account at
+[Cloud IAM](https://console.cloud.google.com/iam-admin/serviceaccounts/).
+You can use "Compute Engine default service account", or create a new one.
+The JSON file downloaded should be placed in
+`$HOME/.config/gcloud/application_default_credentials.json`.
+
 ## backup
 
 Once everything is configured, power Pi off (`# poweroff`) and unplug the SD

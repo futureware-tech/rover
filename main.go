@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -15,7 +15,10 @@ import (
 	"github.com/dasfoo/rover/camera"
 	"github.com/dasfoo/rover/mc"
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 
+	"google.golang.org/api/storage/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -30,12 +33,11 @@ var (
 	board  *bb.BB
 	motors *mc.MC
 
-	tls        = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
-	laddr      = flag.String("laddr", "", "laddr")
-	test       = flag.Bool("test", false, "Flag for startup script")
-	certFile   = flag.String("cert_file", "", "The TLS cert file")
-	keyFile    = flag.String("key_file", "", "The TLS key file")
-	configFile = flag.String("config_file", "", "The file with password for validation user")
+	tls      = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
+	laddr    = flag.String("laddr", "", "laddr")
+	test     = flag.Bool("test", false, "Flag for startup script")
+	certFile = flag.String("cert_file", "", "The TLS cert file")
+	keyFile  = flag.String("key_file", "", "The TLS key file")
 )
 
 func getError(e error) error {
@@ -109,28 +111,37 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	}, nil
 }
 
-func readPasswordFromFile(filePath string) (string, error) {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Println(err)
+func downloadPassword() (string, error) {
+	var svc *storage.Service
+
+	if client, e := google.DefaultClient(oauth2.NoContext,
+		storage.DevstorageReadOnlyScope); e == nil {
+		if svc, e = storage.New(client); e != nil {
+			return "", e
 		}
-	}()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		nameAndValue := strings.Split(sc.Text(), "=")
-		if nameAndValue[0] == "CAPTURE_PASSWORD" {
-			return nameAndValue[1], nil
-		}
+	} else {
+		return "", e
 	}
-	return "", errors.New("Empty file")
+
+	if r, e := svc.Objects.Get(
+		"rover-android-client-auth", "password.json").Download(); e == nil {
+		var b bytes.Buffer
+		b.ReadFrom(r.Body)
+		var entry struct {
+			SecretKey string `json:"secret_key"`
+		}
+
+		if e := json.Unmarshal(b.Bytes(), &entry); e != nil {
+			return "", e
+		}
+		return entry.SecretKey, nil
+	} else {
+		return "", e
+	}
 }
 
 func validatePassword(password string) error {
-	pwd, err := readPasswordFromFile(*configFile)
+	pwd, err := downloadPassword()
 	if err != nil {
 		return err
 	}
