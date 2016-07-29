@@ -125,7 +125,7 @@ const (
 	moduleEnvironmentSensorHumidity    = C.ModuleEnvironmentSensorHumidity
 )
 
-// GetTemperatureAndHumidity gets ambient temperature in Celcius and relative humidity in %
+// GetTemperatureAndHumidity gets ambient temperature in Celsius and relative humidity in %
 func (bb *BB) GetTemperatureAndHumidity() (t byte, h byte, e error) {
 	// TODO: check status
 	if e = bb.bus.WriteByteToReg(bb.address,
