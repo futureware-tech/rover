@@ -120,9 +120,13 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 }
 
 func downloadPassword() (string, error) {
-	var svc *storage.Service
+	var (
+		client *http.Client
+		svc    *storage.Service
+		e      error
+	)
 
-	if client, e := google.DefaultClient(oauth2.NoContext,
+	if client, e = google.DefaultClient(oauth2.NoContext,
 		storage.DevstorageReadOnlyScope); e == nil {
 		if svc, e = storage.New(client); e != nil {
 			return "", e
@@ -131,21 +135,20 @@ func downloadPassword() (string, error) {
 		return "", e
 	}
 
-	if r, e := svc.Objects.Get(
-		"rover-android-client-auth", "password.json").Download(); e == nil {
-		var b bytes.Buffer
-		b.ReadFrom(r.Body)
-		var entry struct {
+	var (
+		r     *http.Response
+		entry struct {
 			SecretKey string `json:"secret_key"`
 		}
-
-		if e := json.Unmarshal(b.Bytes(), &entry); e != nil {
-			return "", e
+	)
+	if r, e = svc.Objects.Get(
+		"rover-android-client-auth", "password.json").Download(); e == nil {
+		var b bytes.Buffer
+		if _, e = b.ReadFrom(r.Body); e == nil {
+			e = json.Unmarshal(b.Bytes(), &entry)
 		}
-		return entry.SecretKey, nil
-	} else {
-		return "", e
 	}
+	return entry.SecretKey, e
 }
 
 func validatePassword(password string) error {
