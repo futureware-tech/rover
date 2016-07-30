@@ -33,11 +33,12 @@ var (
 	board  *bb.BB
 	motors *mc.MC
 
-	tls      = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
-	laddr    = flag.String("laddr", "", "laddr")
-	test     = flag.Bool("test", false, "Flag for startup script")
-	certFile = flag.String("cert_file", "", "The TLS cert file")
-	keyFile  = flag.String("key_file", "", "The TLS key file")
+	tls         = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
+	laddr       = flag.String("laddr", "", "laddr")
+	test        = flag.Bool("test", false, "Flag for startup script")
+	certFile    = flag.String("cert_file", "", "The TLS cert file")
+	keyFile     = flag.String("key_file", "", "The TLS key file")
+	cloudBucket = flag.String("cloud_bucket", "rover-auth", "GCS bucket containing auth data")
 )
 
 func getError(e error) error {
@@ -141,8 +142,7 @@ func downloadPassword() (string, error) {
 			SecretKey string `json:"secret_key"`
 		}
 	)
-	if r, e = svc.Objects.Get(
-		"rover-android-client-auth", "password.json").Download(); e == nil {
+	if r, e = svc.Objects.Get(*cloudBucket, "password.json").Download(); e == nil {
 		var b bytes.Buffer
 		if _, e = b.ReadFrom(r.Body); e == nil {
 			e = json.Unmarshal(b.Bytes(), &entry)
