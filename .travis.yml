@@ -1,7 +1,7 @@
 language: go
 
 go:
-- 1.6
+- 1.7
 - tip
 
 cache:
@@ -12,6 +12,8 @@ addons:
   apt:
     packages:
     - libi2c-dev
+    - gcc-arm-linux-gnueabi
+    - libc6-dev-armel-cross
     # shellcheck is not in Travis' Ubuntu
     #- shellcheck
 
@@ -33,6 +35,16 @@ script:
 - platformio ci --board=diecimilaatmega328 mc
 # Shell part
 - curl https://raw.githubusercontent.com/dasfoo/travis/master/shell.sh | sh -s bin/*
+- |
+    set -a
+    eval "$(bin/deploy env)"
+    go build
+
+    echo "${REMOTE_HOST_KEY?}" >>$HOME/.ssh/known_hosts
+    eval "$(ssh-agent)"
+    ssh-add <(sed 's/|/\n/g' <<<"${REMOTE_HOST_LOGIN_KEY?}")
+
+    scp -P 31438 -r ./rover "${REMOTE_HOST?}":/tmp/
 
 before_deploy:
 # Generate deploy script

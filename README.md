@@ -7,9 +7,10 @@
 
 # golang cross-compiling with CGo
 
-* https://medium.com/@rakyll/go-1-5-cross-compilation-488092ba44ec
-* https://wiki.debian.org/RaspberryPi (from here we learn that Pi is "armel")
-* https://wiki.debian.org/CrossToolchains
+* https://developer.ubuntu.com/en/snappy/guides/cross-build/
+* -https://medium.com/@rakyll/go-1-5-cross-compilation-488092ba44ec
+* -https://wiki.debian.org/RaspberryPi (from here we learn that Pi is "armel")
+* -https://wiki.debian.org/CrossToolchains
 
 # Raspberry PI (A+ V1.1) preparations
 
@@ -48,10 +49,11 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
 
 ## packages
 
-`# apt install git pptp-linux socat`
+`# apt install git pptp-linux`
 
 ## $HOME (/home/pi)
 
+`https://github.com/golang/protobuf`
 `$ git clone https://github.com/dasfoo/rover.git`
 
 ## systemd
