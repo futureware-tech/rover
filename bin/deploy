@@ -15,21 +15,31 @@ GOARM=5
 ENV
 }
 
+ssh_port=$((31416+22))
+ssh_user=pi
+ssh_host="$ssh_user"@rover.dasfoo.org
+ssh_fallback_host="$ssh_user"@fb.rover.dasfoo.org
+
 deploy_ssh() {
-	[ "$(id -un)" = pi ] || ssh_prefix='sudo -u pi --'
-	$ssh_prefix ssh pi "$@"
+	# Set a reasonable timeout for the first connection, which may fail.
+	# We're expecting to expand "$@" on client side.
+	# shellcheck disable=SC2029
+	ssh -o ConnectTimeout=10 -p "$ssh_port" "$ssh_host" "$@" || ret="$?"
+	if [ "$ret" -eq 255 ]; then
+		# shellcheck disable=SC2029
+		ssh -p "$ssh_port" "$ssh_fallback_host" "$@"
+	else
+		return "$ret"
+	fi
 }
 
 deploy_copy() {
-	: "${1?source required}"
-	[ -n "$2" ] && transform="--transform 's|.*|$2|'"
-	tar -czpf - -C "$(dirname "$1")" "$(basename "$1")" |
-		deploy_ssh "tar xzf - -P $transform"
+	tar cpf - "${1?source required}" | deploy_ssh 'tar xf -'
 }
 
 deploy_push() {
 	(
-		package_path="$(realpath -m "$0/../..")"
+		package_path="$(readlink -fm "$0/../..")"
 		cd "$package_path"
 		# propagade the following environment variables to "go build"
 		set -a
