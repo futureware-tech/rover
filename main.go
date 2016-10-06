@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +17,7 @@ import (
 	"github.com/dasfoo/rover/bb"
 	"github.com/dasfoo/rover/camera"
 	"github.com/dasfoo/rover/mc"
+	"github.com/dasfoo/rover/network"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -224,6 +228,24 @@ func routingHandler(grpcHandler http.Handler, otherHandler http.Handler) http.Ha
 	})
 }
 
+func startForwarding() error {
+	_, port, err := net.SplitHostPort(*laddr)
+	if err != nil {
+		return err
+	}
+	var (
+		externalIP string
+		portInt    int
+	)
+	portInt, err = strconv.Atoi(port)
+	if err == nil {
+		externalIP, err = network.SetupForwarding(uint16(portInt), uint16(portInt))
+		fmt.Println("External IP:", externalIP)
+		// TODO(dotdoom): use external IP to update Cloud DNS
+	}
+	return err
+}
+
 func startServer() error {
 	s := grpc.NewServer()
 	pb.RegisterRoverServiceServer(s, &server{})
@@ -252,6 +274,9 @@ func main() {
 
 		board = bb.NewBB(bus, bb.Address)
 		motors = mc.NewMC(bus, mc.Address)
+	}
+	if err := startForwarding(); err != nil {
+		log.Println("Failed to setup forwarding:", err)
 	}
 	if err := startServer(); err != nil {
 		log.Println("Failed to start server :", err)
