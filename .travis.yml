@@ -17,8 +17,8 @@ addons:
 
 install:
 - pip install --user --upgrade platformio
-- platformio lib install 19 580 # Adafruit-DHT, EasyVR
-- platformio lib update
+- platformio lib --global install 19 580 # Adafruit-DHT, EasyVR
+- platformio lib --global update
 
 script:
 # Raspberry Pi part
