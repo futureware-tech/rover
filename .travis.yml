@@ -1,7 +1,10 @@
+sudo: required
+dist: trusty
+
 language: go
 
 go:
-- 1.6
+- 1.7
 - tip
 
 cache:
@@ -12,13 +15,15 @@ addons:
   apt:
     packages:
     - libi2c-dev
+    - gcc-arm-linux-gnueabi
+    - libc6-dev-armel-cross
     # shellcheck is not in Travis' Ubuntu
     #- shellcheck
 
 install:
 - pip install --user --upgrade platformio
-- platformio lib install 19 580 # Adafruit-DHT, EasyVR
-- platformio lib update
+- platformio lib --global install 19 580 # Adafruit-DHT, EasyVR
+- platformio lib --global update
 
 script:
 # Raspberry Pi part
@@ -42,14 +47,9 @@ before_deploy:
     if [ "${TRAVIS_GO_VERSION?}" != "tip" ]; then
       echo "${REMOTE_HOST_KEY?}" >>$HOME/.ssh/known_hosts
       eval "$(ssh-agent)"
-      ssh-add <(sed 's/|/\n/g' <<<"${REMOTE_HOST_LOGIN_KEY?}")
-      tar -C "${GOPATH?}" -czf - src |
-      ssh -q "${REMOTE_HOST?}" "
-          rm -rf \$GOPATH/src &&
-          mkdir -p \$GOPATH &&
-          tar -xzf - -C \$GOPATH &&
-          \$GOPATH/src/github.com/${TRAVIS_REPO_SLUG?}/bin/deploy push
-        "
+      ssh-add <(tr '|' '\n' <<<"${REMOTE_HOST_LOGIN_KEY?}")
+
+      bin/deploy push
     else
         echo "Not deploying for Go tip build."
     fi

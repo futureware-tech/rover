@@ -5,13 +5,28 @@
 [![Build Status](https://travis-ci.org/dasfoo/rover.svg?branch=master)](https://travis-ci.org/dasfoo/rover)
 [![Coverage Status](https://coveralls.io/repos/dasfoo/rover/badge.svg?branch=master&service=github)](https://coveralls.io/github/dasfoo/rover?branch=master)
 
-# golang cross-compiling with CGo
+# Dev environment setup
 
-* https://medium.com/@rakyll/go-1-5-cross-compilation-488092ba44ec
-* https://wiki.debian.org/RaspberryPi (from here we learn that Pi is "armel")
-* https://wiki.debian.org/CrossToolchains
+See [.travis.yml] for setup flow.
 
-# Raspberry PI (A+ V1.1) preparations
+You also need protobuf compiler version 3 (at least).
+See https://github.com/golang/protobuf for instructions.
+
+# Forwarder setup
+
+## `/etc/ssh/sshd_config`
+
+```
+# Allow binding reverse tunnel ports to non-loopback interface.
+GatewayPorts clientspecified
+# Do not resolve SSH client IP address (can be slow).
+UseDNS no
+# Send keepalive packets to make sure the reverse tunnel ports are closed
+# when connection is dropped.
+ClientAliveInterval 15
+```
+
+# Raspberry PI (A+ V1.1) setup
 
 ## OS
 
@@ -46,13 +61,15 @@ https://wiki.ubuntu.com/ReducingDiskFootprint#Documentation)
 * Remove a `console=` reference to `serial0` (this is a UART interface) to allow
   normal SIM800 module interactions
 
+## hostname
+
+`# hostname rover.dasfoo.org`
+
+Also update `/etc/hostname` and `/etc/hosts`.
+
 ## packages
 
-`# apt install git pptp-linux socat`
-
-## $HOME (/home/pi)
-
-`$ git clone https://github.com/dasfoo/rover.git`
+`# apt install pptp-linux`
 
 ## systemd
 
