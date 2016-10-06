@@ -21,6 +21,7 @@ ssh_host="$ssh_user"@rover.dasfoo.org
 ssh_fallback_host="$ssh_user"@fb.rover.dasfoo.org
 
 deploy_ssh() {
+	ret=0
 	# Set a reasonable timeout for the first connection, which may fail.
 	# We're expecting to expand "$@" on client side.
 	# shellcheck disable=SC2029
@@ -34,7 +35,12 @@ deploy_ssh() {
 }
 
 deploy_copy() {
-	tar cpf - "${1?source required}" | deploy_ssh 'tar xf -'
+	if [ -d "${1?source required}" ]; then
+		tar cpf - -C "$(dirname "$1")" "$(basename "$1")" | \
+			deploy_ssh "cd ${2} && tar xf -"
+	else
+		gzip -c "$1" | deploy_ssh "gzip -d >${2-~/$(basename "$1")}"
+	fi
 }
 
 deploy_push() {
