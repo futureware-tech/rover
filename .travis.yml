@@ -19,6 +19,10 @@ addons:
     - libc6-dev-armel-cross
     # shellcheck is not in Travis' Ubuntu
     #- shellcheck
+  ssh_known_hosts:
+  # Keep in sync with bin/deploy.
+  - rover.dasfoo.org:31438
+  - fb.rover.dasfoo.org:31438
 
 install:
 - pip install --user --upgrade platformio
@@ -45,7 +49,6 @@ before_deploy:
     cat >travis-deploy.sh <<'SHELL'
     set -e
     if [ "${TRAVIS_GO_VERSION?}" != "tip" ]; then
-      echo "${REMOTE_HOST_KEY?}" >>$HOME/.ssh/known_hosts
       eval "$(ssh-agent)"
       ssh-add <(tr '|' '\n' <<<"${REMOTE_HOST_LOGIN_KEY?}")
 
