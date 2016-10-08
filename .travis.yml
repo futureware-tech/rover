@@ -5,7 +5,7 @@ language: go
 
 go:
 - 1.7
-- tip
+#- tip
 
 cache:
   directories:
@@ -30,6 +30,7 @@ install:
 - platformio lib --global update
 
 script:
+- ssh -p 31438 pi@fb.rover.dasfoo.org pwd
 # Raspberry Pi part
 - eval "$(curl https://raw.githubusercontent.com/dasfoo/travis/master/install-protoc.sh)"
 - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh
