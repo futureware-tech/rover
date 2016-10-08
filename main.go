@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -19,9 +18,9 @@ import (
 	"github.com/dasfoo/rover/mc"
 	"github.com/dasfoo/rover/network"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
+	dns "google.golang.org/api/dns/v1"
 	"google.golang.org/api/storage/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -131,7 +130,7 @@ func downloadPassword() (string, error) {
 		e      error
 	)
 
-	if client, e = google.DefaultClient(oauth2.NoContext,
+	if client, e = google.DefaultClient(context.Background(),
 		storage.DevstorageReadOnlyScope); e == nil {
 		if svc, e = storage.New(client); e != nil {
 			return "", e
@@ -153,6 +152,49 @@ func downloadPassword() (string, error) {
 		}
 	}
 	return entry.SecretKey, e
+}
+
+func updateDNS(ip string) error {
+	ctx := context.Background()
+	var (
+		client *http.Client
+		svc    *dns.Service
+		e      error
+	)
+	if client, e = google.DefaultClient(ctx, dns.CloudPlatformScope); e != nil {
+		return e
+	}
+	if svc, e = dns.New(client); e != nil {
+		return e
+	}
+
+	// Identifies the project addressed by this request.
+	project := "rover-24b79"
+
+	// Identifies the managed zone addressed by this request. Can be the managed zone name or id.
+	managedZone := "rover"
+
+	return svc.ResourceRecordSets.List(project, managedZone).Pages(
+		ctx, func(page *dns.ResourceRecordSetsListResponse) error {
+			for _, v := range page.Rrsets {
+				if v.Name == "rover.dasfoo.org." && v.Type == "A" {
+					// TODO(dotdoom): do not change if IPs are the same.
+					log.Printf("Changing IP: %s -> %s\n", v.Rrdatas, ip)
+					cg, err := svc.Changes.Create(project, managedZone, &dns.Change{
+						Additions: []*dns.ResourceRecordSet{{
+							Name:    v.Name,
+							Rrdatas: []string{ip},
+							Ttl:     v.Ttl,
+							Type:    v.Type,
+						}},
+						Deletions: []*dns.ResourceRecordSet{v},
+					}).Context(ctx).Do()
+					log.Printf("Change started at %s with status: %s\n", cg.StartTime, cg.Status)
+					return err
+				}
+			}
+			return nil // NOTE: returning a non-nil error stops pagination.
+		})
 }
 
 func validatePassword(password string) error {
@@ -240,8 +282,9 @@ func startForwarding() error {
 	portInt, err = strconv.Atoi(port)
 	if err == nil {
 		externalIP, err = network.SetupForwarding(uint16(portInt), uint16(portInt))
-		fmt.Println("External IP:", externalIP)
-		// TODO(dotdoom): use external IP to update Cloud DNS
+		if err == nil {
+			err = updateDNS(externalIP)
+		}
 	}
 	return err
 }
@@ -255,6 +298,7 @@ func startServer() error {
 			ValidatePassword: validatePassword,
 		}).Handler)),
 	}
+	log.Println("Starting server")
 	if *tls {
 		return httpSrv.ListenAndServeTLS(*certFile, *keyFile)
 	}
