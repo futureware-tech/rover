@@ -169,33 +169,43 @@ func updateDNS(ip string) error {
 		return e
 	}
 
-	// Identifies the project addressed by this request.
+	// TODO(dotdoom): read from well-known file
 	project := "rover-24b79"
 
-	// Identifies the managed zone addressed by this request. Can be the managed zone name or id.
 	managedZone := "rover"
 
-	return svc.ResourceRecordSets.List(project, managedZone).Pages(
+	log.Println("Delete:")
+	// log.SetOutputOffset?
+	var deletions []*dns.ResourceRecordSet
+	e = svc.ResourceRecordSets.List(project, managedZone).Pages(
 		ctx, func(page *dns.ResourceRecordSetsListResponse) error {
 			for _, v := range page.Rrsets {
+				// TODO(dotdoom): make these flags/constants
 				if v.Name == "rover.dasfoo.org." && v.Type == "A" {
-					// TODO(dotdoom): do not change if IPs are the same.
-					log.Printf("Changing IP: %s -> %s\n", v.Rrdatas, ip)
-					cg, err := svc.Changes.Create(project, managedZone, &dns.Change{
-						Additions: []*dns.ResourceRecordSet{{
-							Name:    v.Name,
-							Rrdatas: []string{ip},
-							Ttl:     v.Ttl,
-							Type:    v.Type,
-						}},
-						Deletions: []*dns.ResourceRecordSet{v},
-					}).Context(ctx).Do()
-					log.Printf("Change started at %s with status: %s\n", cg.StartTime, cg.Status)
-					return err
+					log.Println("  ", v.Rrdatas)
+					deletions = append(deletions, v)
 				}
 			}
 			return nil // NOTE: returning a non-nil error stops pagination.
 		})
+	if e != nil {
+		return e
+	}
+
+	// TODO(dotdoom): do not change if IPs are the same.
+	log.Println("Add:", ip)
+	cg, err := svc.Changes.Create(project, managedZone, &dns.Change{
+		Additions: []*dns.ResourceRecordSet{{
+			Name:    "rover.dasfoo.org.",
+			Rrdatas: []string{ip},
+			Ttl:     300, // seconds
+			Type:    "A",
+		}},
+		Deletions: deletions,
+	}).Context(ctx).Do()
+	log.Printf("Change started at %s with status: %s\n", cg.StartTime, cg.Status)
+	// TODO(dotdoom): poll-wait for status
+	return err
 }
 
 func validatePassword(password string) error {
