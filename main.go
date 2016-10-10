@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -306,7 +307,11 @@ func startServer() error {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	if os.Getenv("ROVER_LOG_TIMESTAMP") == "false" {
+		log.SetFlags(log.Lshortfile)
+	} else {
+		log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	}
 	flag.Parse()
 	log.Println("Properties from command line:", *laddr)
 	log.Println("Flag for startup script", *test)
