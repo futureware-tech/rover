@@ -156,56 +156,18 @@ func downloadPassword() (string, error) {
 }
 
 func updateDNS(ip string) error {
-	ctx := context.Background()
-	var (
-		client *http.Client
-		svc    *dns.Service
-		e      error
-	)
-	if client, e = google.DefaultClient(ctx, dns.CloudPlatformScope); e != nil {
-		return e
-	}
-	if svc, e = dns.New(client); e != nil {
-		return e
-	}
-
-	// TODO(dotdoom): read from well-known file
-	project := "rover-24b79"
-
-	managedZone := "rover"
-
-	log.Println("Delete:")
-	// log.SetOutputOffset?
-	var deletions []*dns.ResourceRecordSet
-	e = svc.ResourceRecordSets.List(project, managedZone).Pages(
-		ctx, func(page *dns.ResourceRecordSetsListResponse) error {
-			for _, v := range page.Rrsets {
-				// TODO(dotdoom): make these flags/constants
-				if v.Name == "rover.dasfoo.org." && v.Type == "A" {
-					log.Println("  ", v.Rrdatas)
-					deletions = append(deletions, v)
-				}
-			}
-			return nil // NOTE: returning a non-nil error stops pagination.
-		})
+	c, e := network.NewDNSClient(context.Background(), "rover")
 	if e != nil {
 		return e
 	}
-
-	// TODO(dotdoom): do not change if IPs are the same.
-	log.Println("Add:", ip)
-	cg, err := svc.Changes.Create(project, managedZone, &dns.Change{
-		Additions: []*dns.ResourceRecordSet{{
+	return c.UpdateDNS(context.Background(),
+		&dns.ResourceRecordSet{
 			Name:    "rover.dasfoo.org.",
-			Rrdatas: []string{ip},
-			Ttl:     300, // seconds
 			Type:    "A",
-		}},
-		Deletions: deletions,
-	}).Context(ctx).Do()
-	log.Printf("Change started at %s with status: %s\n", cg.StartTime, cg.Status)
-	// TODO(dotdoom): poll-wait for status
-	return err
+			Rrdatas: []string{ip},
+			Ttl:     300,
+		})
+	// TODO(dotdoom): wait for data to propagade?
 }
 
 func validatePassword(password string) error {
