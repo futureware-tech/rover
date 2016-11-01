@@ -1,0 +1,237 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"math"
+	"time"
+
+	"github.com/dasfoo/i2c"
+	"github.com/dasfoo/minimu9"
+	"github.com/dasfoo/minimu9/l3gd"
+	"github.com/dasfoo/minimu9/lsm303d"
+	"github.com/dasfoo/rover/bb"
+	"github.com/dasfoo/rover/mc"
+	"github.com/golang/geo/r3"
+)
+
+type VectorReader interface {
+	Read() (r3.Vector, error)
+}
+
+const MaxCyclesPerSecond = 2048
+
+func VectorStr(v r3.Vector) string {
+	return fmt.Sprintf("(%.3f %.3f %.3f)", v.X, v.Y, v.Z)
+}
+
+func MeasureDeviation(reader VectorReader, duration time.Duration) r3.Vector {
+	seconds := int(duration / time.Second)
+	vectors := make([]r3.Vector, seconds*MaxCyclesPerSecond)
+	var vectorsLen, cyclesDone, cyclesExtra, cyclesNotEnough int
+	var averageVector r3.Vector
+
+	startedAt := time.Now()
+	for time.Since(startedAt) < duration {
+		time.Sleep(time.Millisecond)
+		cyclesDone += 1
+		vector, e := reader.Read()
+		if e != nil {
+			if de, ok := e.(*minimu9.DataAvailabilityError); ok {
+				if de.NewDataNotAvailable {
+					cyclesExtra += 1
+					continue
+				} else {
+					cyclesNotEnough += 1
+				}
+			}
+		}
+		vectors[vectorsLen] = vector
+		vectorsLen += 1
+		averageVector = averageVector.Add(vector)
+	}
+	averageVector = averageVector.Mul(1.0 / float64(vectorsLen))
+
+	var maxDiff, averageDiff float64
+	var maxDiffIndex int
+	for i := 0; i < vectorsLen; i++ {
+		diff := vectors[i].Sub(averageVector).Norm()
+		averageDiff += diff
+		if diff > maxDiff {
+			maxDiff = diff
+			maxDiffIndex = i
+		}
+	}
+	averageDiff /= float64(vectorsLen)
+
+	fmt.Printf(`
+	Duration: %s
+	Computed frequency: %.4f
+	Iterations per second: %d
+		Extra iterations: %d
+		Not enough iterations: %d
+	Max diff: %.4f %s
+	Average diff: %.4f %s
+`,
+		duration, float64(cyclesDone-cyclesExtra+cyclesNotEnough)/float64(seconds),
+		cyclesDone/seconds, cyclesExtra/seconds, cyclesNotEnough/seconds,
+		maxDiff, vectors[maxDiffIndex],
+		averageDiff, averageVector)
+
+	return averageVector
+}
+
+func Motor(motors *mc.MC, dir int) {
+	var step int8
+	if dir > 0 {
+		step = 20
+	} else {
+		step = -20
+	}
+	var speed int8
+	for speed = speed; math.Abs(float64(speed)) < mc.MaxSpeed; speed += step {
+		motors.Left(speed)
+		motors.Right(speed)
+		time.Sleep(300 * time.Millisecond)
+	}
+	for speed = speed - step; math.Abs(float64(speed)) > 0; speed -= step {
+		motors.Left(speed)
+		motors.Right(speed)
+		time.Sleep(300 * time.Millisecond)
+	}
+	motors.Left(0)
+	motors.Right(0)
+}
+
+func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	if bus, err := i2c.NewBus(1); err != nil {
+		log.Fatal(err)
+	} else {
+		bus.SetLogger(func(string, ...interface{}) {})
+		board := bb.NewBB(bus, bb.Address)
+		_ = board
+
+		motors := mc.NewMC(bus, mc.Address)
+		for i := 0; i < 5; i++ {
+			Motor(motors, 1)
+			Motor(motors, -1)
+		}
+		return
+
+		fmt.Println("Gyro")
+		g := l3gd.NewGyro(bus, l3gd.DefaultAddress)
+		g.Wake()
+		gv := MeasureDeviation(g, 2*time.Second)
+		_ = gv
+
+		fmt.Println("Accel")
+		a := lsm303d.NewAccelerometer(bus, lsm303d.DefaultAddress)
+		a.Wake()
+		av := MeasureDeviation(a, 2*time.Second)
+		_ = av
+
+		fmt.Println("Magnetometer")
+		m := lsm303d.NewMagnetometer(bus, lsm303d.DefaultAddress)
+		m.Wake()
+		mv := MeasureDeviation(m, 2*time.Second)
+		_ = mv
+
+		stop := make(chan int)
+		go func() {
+			v, e := m.Calibrate(stop)
+			fmt.Println("Calibration finised,", e, "avg vector:", VectorStr(v))
+		}()
+
+		time.Sleep(10 * time.Second)
+		stop <- 0
+
+		MeasureDeviation(m, 2*time.Second)
+		return
+		// min (-0.335856427786595, -0.29227200586009033, -0.4192406299597119)
+		// max (0.22744475643999512, 0.5426687828104017, 0.10340617751190331)
+
+		/*var max r3.Vector
+		var min r3.Vector
+
+		for {
+			m, _ := m.Read()
+
+			if m.X > max.X {
+				max.X = m.X
+			}
+			if m.X < min.X {
+				min.X = m.X
+			}
+
+			if m.Y > max.Y {
+				max.Y = m.Y
+			}
+			if m.Y < min.Y {
+				min.Y = m.Y
+			}
+
+			if m.Z > max.Z {
+				max.Z = m.Z
+			}
+			if m.Z < min.Z {
+				min.Z = m.Z
+			}
+
+			fmt.Println(m, "min", min, "max", max)
+			motors.Left(45)
+			time.Sleep(100 * time.Millisecond)
+			motors.Left(0)
+		}
+		return*/
+
+		for i := 0; true; i++ {
+			fmt.Println(i)
+			g, ge := g.Read()
+			fmt.Printf("Gyro:   %40s %70v\n", VectorStr(g), ge)
+			a, ae := a.Read()
+			fmt.Printf("Accel:  %40s %70v\n", VectorStr(a), ae)
+			m, me := m.Read()
+			fmt.Printf("Magnet: %40s %70v\n", VectorStr(m), me)
+
+			E := m.Cross(a).Normalize()
+			N := a.Cross(E).Normalize()
+			from := r3.Vector{X: 0, Y: 0, Z: 1}
+			heading := math.Atan2(E.Dot(from), N.Dot(from)) * 180 / math.Pi
+			fmt.Println("Heading:", heading)
+			time.Sleep(50 * time.Millisecond)
+			fmt.Printf("%c[6A\n", 27)
+		}
+
+		return
+
+		heading := func() float64 {
+			h, _ := lsm303d.RelativeHeading(a, m)
+			h = h * 180.0 / math.Pi
+			if h < 0 {
+				h += 360
+			}
+			return h
+		}
+
+		start := heading()
+		end := start + 90
+
+		motors.Left(mc.MaxSpeed / 2)
+		motors.Right(-mc.MaxSpeed / 2)
+		for {
+			now := heading()
+			if now < start-90 {
+				now += 360
+			}
+			fmt.Println(start, now, end)
+			if now > end {
+				break
+			}
+		}
+		motors.Left(0)
+		motors.Right(0)
+
+		return
+	}
+}
