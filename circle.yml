@@ -1,0 +1,53 @@
+# Configuration set at the UI:
+#  - Ubuntu Trusty machine at https://circleci.com/gh/dasfoo/rover/edit#build-environment.
+#  - SSH private key for deployment at https://circleci.com/gh/dasfoo/rover/edit#ssh.
+#  - COVERALLS_TOKEN at https://circleci.com/gh/dasfoo/rover/edit#env-vars,
+#    get value from https://coveralls.io/github/dasfoo/rover.
+
+machine:
+  environment:
+    PATH: "${HOME}/.protoc:${HOME}/.local/bin:~/.go_workspace/bin:${PATH}"
+    PLATFORMIO_BUILD_FLAGS: "-Wall -Werror"
+
+checkout:
+  post:
+  - git submodule sync
+  - git submodule update --init
+
+dependencies:
+  pre:
+  - sudo apt install -yq --no-install-suggests --no-install-recommends --force-yes libi2c-dev gcc-arm-linux-gnueabi libc6-dev-armel-cross
+  - pip install --user --upgrade platformio
+  - platformio lib --global install "DHT sensor library@1.2.3" "EasyVR"
+  # Disabling this step because it would update DHT library, which is broken at latest (1.3.0).
+  #- platformio lib --global update
+  - curl https://raw.githubusercontent.com/dasfoo/travis/master/install-protoc.sh | sh
+  cache_directories:
+  - ~/.platformio
+  override:
+  # TODO(dotdoom): replace this with (parts of?) go.sh below.
+  - go get -t -d -v ./...
+
+test:
+  override:
+  # Raspberry Pi part
+  - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh:
+      pwd: "../.go_workspace/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+  # Common arduino part
+  - curl https://raw.githubusercontent.com/dasfoo/travis/master/cpp.sh | sh -s bb/* mc/*
+  # BotBoarduino part
+  - platformio ci --board=diecimilaatmega328 bb
+  # MotorController part
+  - platformio ci --board=diecimilaatmega328 mc
+  # Shell part
+  - curl https://raw.githubusercontent.com/dasfoo/travis/master/shell.sh | sh -s bin/*
+  post:
+  # TODO(dotdoom): find a cleaner way to build this artifact?
+  - set -a; eval "$(bin/deploy env)" && go build
+  - mv rover "${CIRCLE_ARTIFACTS}"
+
+deployment:
+  master:
+    branch: master
+    commands:
+    - bin/deploy push
