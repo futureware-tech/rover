@@ -6,7 +6,9 @@
 
 machine:
   environment:
-    PATH: "${HOME}/.protoc:${HOME}/.local/bin:~/.go_workspace/bin:${PATH}"
+    PATH: "${HOME?}/.protoc:${HOME?}/.local/bin:~/.go_workspace/bin:${PATH}"
+    # Can't be an absolute path because Circle CI's "pwd:" prepends it with default working directory.
+    PACKAGE_PATH: "../.go_workspace/src/github.com/${CIRCLE_PROJECT_USERNAME?}/${CIRCLE_PROJECT_REPONAME?}"
     PLATFORMIO_BUILD_FLAGS: "-Wall -Werror"
 
 checkout:
@@ -15,24 +17,29 @@ checkout:
   - git submodule update --init
 
 dependencies:
-  pre:
+  override:
   - sudo apt install -yq --no-install-suggests --no-install-recommends --force-yes libi2c-dev gcc-arm-linux-gnueabi libc6-dev-armel-cross
   - pip install --user --upgrade platformio
   - platformio lib --global install "DHT sensor library@1.2.3" "EasyVR"
   # Disabling this step because it would update DHT library, which is broken at latest (1.3.0).
   #- platformio lib --global update
+  # The default action of Circle CI is weird. It creates a symlink to the project in ~/.go_project,
+  # but dependencies in ~/.go_workspace. We don't want to mess around with this setup and just put
+  # everything together.
+  # Also clean the build space so that we get the latest versions of all dependencies.
+  - rm -rf "${HOME?}/.go_workspace"
+  - mkdir -p "${PACKAGE_PATH?}" && rm -rf "${PACKAGE_PATH?}" && ln -sfT "${PWD?}" "${PACKAGE_PATH?}"
   - curl https://raw.githubusercontent.com/dasfoo/travis/master/install-protoc.sh | sh
   cache_directories:
   - ~/.platformio
-  override:
-  # TODO(dotdoom): replace this with (parts of?) go.sh below.
-  - go get -t -d -v ./...
 
 test:
   override:
   # Raspberry Pi part
-  - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | sh:
-      pwd: "../.go_workspace/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+  - curl https://raw.githubusercontent.com/dasfoo/travis/master/go.sh | ENV=<(bin/deploy env) sh:
+      pwd: "${PACKAGE_PATH?}"
+  - eval "$(bin/deploy env)" && go build
+  - mv rover "${CIRCLE_ARTIFACTS?}"
   # Common arduino part
   - curl https://raw.githubusercontent.com/dasfoo/travis/master/cpp.sh | sh -s bb/* mc/*
   # BotBoarduino part
@@ -41,10 +48,6 @@ test:
   - platformio ci --board=diecimilaatmega328 mc
   # Shell part
   - curl https://raw.githubusercontent.com/dasfoo/travis/master/shell.sh | sh -s bin/*
-  post:
-  # TODO(dotdoom): find a cleaner way to build this artifact?
-  - set -a; eval "$(bin/deploy env)" && go build
-  - mv rover "${CIRCLE_ARTIFACTS}"
 
 deployment:
   master:
