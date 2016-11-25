@@ -36,8 +36,8 @@ deploy_ssh() {
 
 deploy_copy() {
 	if [ -d "${1?source required}" ]; then
-		tar cpf - -C "$(dirname "$1")" "$(basename "$1")" | \
-			deploy_ssh "cd ${2} && tar xf -"
+		tar -c -p -C "$(dirname "$1")" "$(basename "$1")" | \
+			deploy_ssh "cd ${2} && tar -x --unlink-first --recursive-unlink"
 	else
 		gzip -c "$1" | deploy_ssh "gzip -d >${2-~/$(basename "$1")}"
 	fi
