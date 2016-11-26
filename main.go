@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -155,46 +156,18 @@ func downloadPassword() (string, error) {
 }
 
 func updateDNS(ip string) error {
-	ctx := context.Background()
-	var (
-		client *http.Client
-		svc    *dns.Service
-		e      error
-	)
-	if client, e = google.DefaultClient(ctx, dns.CloudPlatformScope); e != nil {
+	c, e := network.NewDNSClient(context.Background(), "rover")
+	if e != nil {
 		return e
 	}
-	if svc, e = dns.New(client); e != nil {
-		return e
-	}
-
-	// Identifies the project addressed by this request.
-	project := "rover-24b79"
-
-	// Identifies the managed zone addressed by this request. Can be the managed zone name or id.
-	managedZone := "rover"
-
-	return svc.ResourceRecordSets.List(project, managedZone).Pages(
-		ctx, func(page *dns.ResourceRecordSetsListResponse) error {
-			for _, v := range page.Rrsets {
-				if v.Name == "rover.dasfoo.org." && v.Type == "A" {
-					// TODO(dotdoom): do not change if IPs are the same.
-					log.Printf("Changing IP: %s -> %s\n", v.Rrdatas, ip)
-					cg, err := svc.Changes.Create(project, managedZone, &dns.Change{
-						Additions: []*dns.ResourceRecordSet{{
-							Name:    v.Name,
-							Rrdatas: []string{ip},
-							Ttl:     v.Ttl,
-							Type:    v.Type,
-						}},
-						Deletions: []*dns.ResourceRecordSet{v},
-					}).Context(ctx).Do()
-					log.Printf("Change started at %s with status: %s\n", cg.StartTime, cg.Status)
-					return err
-				}
-			}
-			return nil // NOTE: returning a non-nil error stops pagination.
+	return c.UpdateDNS(context.Background(),
+		&dns.ResourceRecordSet{
+			Name:    "rover.dasfoo.org.",
+			Type:    "A",
+			Rrdatas: []string{ip},
+			Ttl:     300,
 		})
+	// TODO(dotdoom): wait for data to propagade?
 }
 
 func validatePassword(password string) error {
@@ -306,7 +279,11 @@ func startServer() error {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	if os.Getenv("ROVER_LOG_TIMESTAMP") == "false" {
+		log.SetFlags(log.Lshortfile)
+	} else {
+		log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	}
 	flag.Parse()
 	log.Println("Properties from command line:", *laddr)
 	log.Println("Flag for startup script", *test)

@@ -10,3 +10,5 @@ RestartSec=1
 Restart=always
 StartLimitInterval=0
 StartLimitAction=reboot-force
+# Disable because systemd logs it for us.
+Environment=ROVER_LOG_TIMESTAMP=false
