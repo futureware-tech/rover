@@ -7,7 +7,7 @@
 
 # Dev environment setup
 
-See [circle.yml] for setup flow.
+See [Circle CI config](circle.yml) for setup flow.
 
 You also need protobuf compiler version 3 (at least).
 See https://github.com/golang/protobuf for instructions.
