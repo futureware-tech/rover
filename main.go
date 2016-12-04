@@ -37,11 +37,8 @@ var (
 	board  *bb.BB
 	motors *mc.MC
 
-	tls         = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
 	laddr       = flag.String("laddr", "", "laddr")
 	test        = flag.Bool("test", false, "Flag for startup script")
-	certFile    = flag.String("cert_file", "", "The TLS cert file")
-	keyFile     = flag.String("key_file", "", "The TLS key file")
 	cloudBucket = flag.String("cloud_bucket", "rover-auth", "GCS bucket containing auth data")
 )
 
@@ -156,7 +153,7 @@ func downloadPassword() (string, error) {
 }
 
 func updateDNS(ip string) error {
-	c, e := network.NewDNSClient(context.Background(), "rover")
+	c, e := network.NewDNSClient(context.Background(), "rover-dasfoo-org")
 	if e != nil {
 		return e
 	}
@@ -165,9 +162,8 @@ func updateDNS(ip string) error {
 			Name:    "rover.dasfoo.org.",
 			Type:    "A",
 			Rrdatas: []string{ip},
-			Ttl:     300,
-		})
-	// TODO(dotdoom): wait for data to propagade?
+			Ttl:     60,
+		}, true)
 }
 
 func validatePassword(password string) error {
@@ -256,7 +252,11 @@ func startForwarding() error {
 	if err == nil {
 		externalIP, err = network.SetupForwarding(uint16(portInt), uint16(portInt))
 		if err == nil {
-			err = updateDNS(externalIP)
+			go func() {
+				if err = updateDNS(externalIP); err != nil {
+					log.Println(err)
+				}
+			}()
 		}
 	}
 	return err
@@ -271,10 +271,18 @@ func startServer() error {
 			ValidatePassword: validatePassword,
 		}).Handler)),
 	}
-	log.Println("Starting server")
-	if *tls {
-		return httpSrv.ListenAndServeTLS(*certFile, *keyFile)
+
+	c, err := network.NewACMEClient(context.Background(), ".config/acme")
+	if err == nil {
+		err = c.CheckOrRefreshCertificate(context.Background(),
+			"rover.dasfoo.org", "fb.rover.dasfoo.org")
 	}
+	if err == nil {
+		certFile, keyFile := c.GetDomainsCertpairPath("rover.dasfoo.org", "fb.rover.dasfoo.org")
+		log.Println("Starting HTTPS server")
+		return httpSrv.ListenAndServeTLS(certFile, keyFile)
+	}
+	log.Println("Starting HTTP server, no TLS:", err)
 	return httpSrv.ListenAndServe()
 }
 
@@ -300,6 +308,6 @@ func main() {
 		log.Println("Failed to setup forwarding:", err)
 	}
 	if err := startServer(); err != nil {
-		log.Println("Failed to start server :", err)
+		log.Println("Failed to start server:", err)
 	}
 }

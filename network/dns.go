@@ -24,7 +24,7 @@ func NewDNSClient(ctx context.Context, zone string) (*DNSClient, error) {
 	}
 	c := &DNSClient{
 		// TODO(dotdoom): read from the config file.
-		project: "rover-24b79",
+		project: "rover-cloud",
 		zone:    zone,
 	}
 	c.client, err = dns.New(http)
@@ -56,7 +56,8 @@ func (c *DNSClient) pollCompletion(ctx context.Context, chg *dns.Change) error {
 }
 
 // UpdateDNS adds or replaces DNS record in Google Cloud DNS according to the arguments specified.
-func (c *DNSClient) UpdateDNS(ctx context.Context, rrs *dns.ResourceRecordSet) error {
+func (c *DNSClient) UpdateDNS(ctx context.Context, rrs *dns.ResourceRecordSet,
+	waitPropagation bool) error {
 	chg := &dns.Change{
 		Additions: []*dns.ResourceRecordSet{rrs},
 	}
@@ -64,6 +65,7 @@ func (c *DNSClient) UpdateDNS(ctx context.Context, rrs *dns.ResourceRecordSet) e
 		func(page *dns.ResourceRecordSetsListResponse) error {
 			for _, v := range page.Rrsets {
 				if v.Name == rrs.Name && v.Type == rrs.Type {
+					// TODO(dotdoom): early return if the record is unchanged.
 					log.Println("Delete:", v.Rrdatas)
 					chg.Deletions = append(chg.Deletions, v)
 				}
@@ -78,6 +80,12 @@ func (c *DNSClient) UpdateDNS(ctx context.Context, rrs *dns.ResourceRecordSet) e
 	chg, err = c.client.Changes.Create(c.project, c.zone, chg).Context(ctx).Do()
 	if err != nil {
 		return err
+	}
+
+	if waitPropagation {
+		// TODO(dotdoom): check propagation via DNS
+		// TODO(dotdoom): use old record's TTL instead
+		time.Sleep(time.Duration(rrs.Ttl) * time.Second)
 	}
 
 	return c.pollCompletion(ctx, chg)
