@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"reflect"
 	"time"
 
 	"golang.org/x/net/context"
@@ -80,13 +81,23 @@ func (c *DNSClient) UpdateDNS(ctx context.Context, rrs *dns.ResourceRecordSet,
 	chg := &dns.Change{
 		Additions: []*dns.ResourceRecordSet{rrs},
 	}
+	maxTtl := rrs.Ttl
 	err := c.client.ResourceRecordSets.List(c.project, c.zone).Pages(ctx,
 		func(page *dns.ResourceRecordSetsListResponse) error {
 			for _, v := range page.Rrsets {
 				if v.Name == rrs.Name && v.Type == rrs.Type {
-					// TODO(dotdoom): early return if the record is unchanged.
-					log.Println("Delete:", v.Rrdatas)
-					chg.Deletions = append(chg.Deletions, v)
+					if v.Ttl > maxTtl {
+						maxTtl = v.Ttl
+					}
+					if len(chg.Additions) == 1 &&
+						chg.Additions[0].Ttl == v.Ttl &&
+						reflect.DeepEqual(chg.Additions[0].Rrdatas, v.Rrdatas) {
+						log.Println("Keeping existing record:", v.Rrdatas)
+						chg.Additions = chg.Additions[:0]
+					} else {
+						log.Println("Deleting existing record:", v.Rrdatas)
+						chg.Deletions = append(chg.Deletions, v)
+					}
 				}
 			}
 			return nil
@@ -95,17 +106,27 @@ func (c *DNSClient) UpdateDNS(ctx context.Context, rrs *dns.ResourceRecordSet,
 		return err
 	}
 
-	log.Println("Add:", rrs.Rrdatas)
+	if len(chg.Additions) == 0 && len(chg.Deletions) == 0 {
+		return nil
+	}
+
+	if len(chg.Additions) == 1 {
+		log.Println("Adding new record:", chg.Additions[0].Rrdatas)
+	}
+
 	chg, err = c.client.Changes.Create(c.project, c.zone, chg).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
 
-	if waitPropagation {
-		// TODO(dotdoom): check propagation via DNS
-		// TODO(dotdoom): use old record's TTL instead
-		time.Sleep(time.Duration(rrs.Ttl) * time.Second)
+	err = c.pollCompletion(ctx, chg)
+	if err != nil {
+		return err
 	}
 
-	return c.pollCompletion(ctx, chg)
+	if waitPropagation {
+		time.Sleep(time.Duration(maxTtl) * time.Second)
+	}
+
+	return nil
 }
