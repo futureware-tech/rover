@@ -1,7 +1,10 @@
 package network
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
+	"reflect"
 	"time"
 
 	"golang.org/x/net/context"
@@ -22,9 +25,26 @@ func NewDNSClient(ctx context.Context, zone string) (*DNSClient, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	/* TODO(dotdoom): use this code once github.com/golang/oauth2/google f6093e3 is released
+	var credentials *google.DefaultCredentials
+	credentials, err = google.FindDefaultCredentials(ctx)
+	*/
+	var credentialsData []byte
+	credentialsData, err = ioutil.ReadFile(".config/gcloud/application_default_credentials.json")
+	if err != nil {
+		return nil, err
+	}
+	var credentials struct {
+		ProjectID string `json:"project_id"`
+	}
+	err = json.Unmarshal(credentialsData, &credentials)
+
+	if err != nil {
+		return nil, err
+	}
 	c := &DNSClient{
-		// TODO(dotdoom): read from the config file.
-		project: "rover-cloud",
+		project: credentials.ProjectID,
 		zone:    zone,
 	}
 	c.client, err = dns.New(http)
@@ -55,38 +75,63 @@ func (c *DNSClient) pollCompletion(ctx context.Context, chg *dns.Change) error {
 	}
 }
 
-// UpdateDNS adds or replaces DNS record in Google Cloud DNS according to the arguments specified.
-func (c *DNSClient) UpdateDNS(ctx context.Context, rrs *dns.ResourceRecordSet,
-	waitPropagation bool) error {
+func (c *DNSClient) createChange(ctx context.Context,
+	rrs *dns.ResourceRecordSet) (*dns.Change, error) {
 	chg := &dns.Change{
 		Additions: []*dns.ResourceRecordSet{rrs},
 	}
-	err := c.client.ResourceRecordSets.List(c.project, c.zone).Pages(ctx,
+	return chg, c.client.ResourceRecordSets.List(c.project, c.zone).Pages(ctx,
 		func(page *dns.ResourceRecordSetsListResponse) error {
 			for _, v := range page.Rrsets {
 				if v.Name == rrs.Name && v.Type == rrs.Type {
-					// TODO(dotdoom): early return if the record is unchanged.
-					log.Println("Delete:", v.Rrdatas)
-					chg.Deletions = append(chg.Deletions, v)
+					if len(chg.Additions) == 1 &&
+						chg.Additions[0].Ttl == v.Ttl &&
+						reflect.DeepEqual(chg.Additions[0].Rrdatas, v.Rrdatas) {
+						log.Println("Keeping existing record:", v.Rrdatas)
+						chg.Additions = chg.Additions[:0]
+					} else {
+						log.Println("Deleting existing record:", v.Rrdatas)
+						chg.Deletions = append(chg.Deletions, v)
+					}
 				}
 			}
 			return nil
 		})
+}
+
+// UpdateDNS adds or replaces DNS record in Google Cloud DNS according to the arguments specified.
+func (c *DNSClient) UpdateDNS(ctx context.Context, rrs *dns.ResourceRecordSet,
+	waitPropagation bool) error {
+	chg, err := c.createChange(ctx, rrs)
 	if err != nil {
 		return err
 	}
+	if len(chg.Additions) == 0 && len(chg.Deletions) == 0 {
+		return nil
+	}
 
-	log.Println("Add:", rrs.Rrdatas)
-	chg, err = c.client.Changes.Create(c.project, c.zone, chg).Context(ctx).Do()
-	if err != nil {
+	var maxTTL int64
+	for _, existingRRS := range chg.Deletions {
+		if existingRRS.Ttl > maxTTL {
+			maxTTL = existingRRS.Ttl
+		}
+	}
+
+	if len(chg.Additions) == 1 {
+		log.Println("Adding new record:", chg.Additions[0].Rrdatas)
+	}
+
+	if chg, err = c.client.Changes.Create(c.project, c.zone, chg).Context(ctx).Do(); err != nil {
+		return err
+	}
+
+	if err = c.pollCompletion(ctx, chg); err != nil {
 		return err
 	}
 
 	if waitPropagation {
-		// TODO(dotdoom): check propagation via DNS
-		// TODO(dotdoom): use old record's TTL instead
-		time.Sleep(time.Duration(rrs.Ttl) * time.Second)
+		time.Sleep(time.Duration(maxTTL) * time.Second)
 	}
 
-	return c.pollCompletion(ctx, chg)
+	return nil
 }

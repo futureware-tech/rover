@@ -273,6 +273,7 @@ func startServer() error {
 	}
 
 	c, err := network.NewACMEClient(context.Background(), ".config/acme")
+	// TODO(dotdoom): set c.DNS
 	if err == nil {
 		err = c.CheckOrRefreshCertificate(context.Background(),
 			"rover.dasfoo.org", "fb.rover.dasfoo.org")
