@@ -1,6 +1,8 @@
 package network
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"time"
 
@@ -22,9 +24,26 @@ func NewDNSClient(ctx context.Context, zone string) (*DNSClient, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	/* TODO(dotdoom): use this code once github.com/golang/oauth2/google f6093e3 is released
+	var credentials *google.DefaultCredentials
+	credentials, err = google.FindDefaultCredentials(ctx)
+	*/
+	var credentialsData []byte
+	credentialsData, err = ioutil.ReadFile(".config/gcloud/application_default_credentials.json")
+	if err != nil {
+		return nil, err
+	}
+	var credentials struct {
+		ProjectID string `json:"project_id"`
+	}
+	err = json.Unmarshal(credentialsData, &credentials)
+
+	if err != nil {
+		return nil, err
+	}
 	c := &DNSClient{
-		// TODO(dotdoom): read from the config file.
-		project: "rover-cloud",
+		project: credentials.ProjectID,
 		zone:    zone,
 	}
 	c.client, err = dns.New(http)
