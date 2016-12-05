@@ -37,15 +37,23 @@ var (
 	board  *bb.BB
 	motors *mc.MC
 
-	laddr       = flag.String("laddr", "", "laddr")
-	test        = flag.Bool("test", false, "Flag for startup script")
-	cloudBucket = flag.String("cloud_bucket", "rover-auth", "GCS bucket containing auth data")
+	testMode = flag.Bool("test", false,
+		"Testing mode (running application from dev environment)")
+	listenAddress = flag.String("listen", "",
+		"Listen address: [<ip>]:<port>")
+	gcsBucket = flag.String("gcs_bucket", "rover-auth",
+		"Name of GCS bucket containing authorization data")
+	domainsString = flag.String("domains", "rover.dasfoo.org,fb.rover.dasfoo.org",
+		"List of domains for DNS updates, first domain will get DNS updates, "+
+			"but TLS certificate will be obtained for all of them")
+	cloudDNSZone = flag.String("cloud_dns_zone", "",
+		"Google Cloud DNS Zone name, defaults to the first domain, dots replaced with dashes")
+
+	domains []string
 )
 
 func getError(e error) error {
-	errf := grpc.Errorf // Confuse `go vet' to not check this `Errorf' call. :(
-	// See https://github.com/grpc/grpc-go/issues/90
-	return errf(codes.Unavailable, "%s", e.Error())
+	return grpc.Errorf(codes.Unavailable, "%s", e.Error())
 }
 
 // MoveRover implements
@@ -143,7 +151,7 @@ func downloadPassword() (string, error) {
 			SecretKey string `json:"secret_key"`
 		}
 	)
-	if r, e = svc.Objects.Get(*cloudBucket, "password.json").Download(); e == nil {
+	if r, e = svc.Objects.Get(*gcsBucket, "password.json").Download(); e == nil {
 		var b bytes.Buffer
 		if _, e = b.ReadFrom(r.Body); e == nil {
 			e = json.Unmarshal(b.Bytes(), &entry)
@@ -153,13 +161,13 @@ func downloadPassword() (string, error) {
 }
 
 func updateDNS(ip string) error {
-	c, e := network.NewDNSClient(context.Background(), "rover-dasfoo-org")
+	c, e := network.NewDNSClient(context.Background(), *cloudDNSZone)
 	if e != nil {
 		return e
 	}
 	return c.UpdateDNS(context.Background(),
 		&dns.ResourceRecordSet{
-			Name:    "rover.dasfoo.org.",
+			Name:    domains[0] + ".",
 			Type:    "A",
 			Rrdatas: []string{ip},
 			Ttl:     60,
@@ -230,7 +238,6 @@ func (s *server) ReadEncoders(ctx context.Context,
 
 func routingHandler(grpcHandler http.Handler, otherHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO(dotdoom): find & use a constant instead of hardcode for header name and value
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 			grpcHandler.ServeHTTP(w, r)
 		} else {
@@ -240,7 +247,7 @@ func routingHandler(grpcHandler http.Handler, otherHandler http.Handler) http.Ha
 }
 
 func startForwarding() error {
-	_, port, err := net.SplitHostPort(*laddr)
+	_, port, err := net.SplitHostPort(*listenAddress)
 	if err != nil {
 		return err
 	}
@@ -266,7 +273,7 @@ func startServer() error {
 	s := grpc.NewServer()
 	pb.RegisterRoverServiceServer(s, &server{})
 	httpSrv := &http.Server{
-		Addr: *laddr,
+		Addr: *listenAddress,
 		Handler: routingHandler(s, http.HandlerFunc((&camera.Server{
 			ValidatePassword: validatePassword,
 		}).Handler)),
@@ -275,11 +282,10 @@ func startServer() error {
 	c, err := network.NewACMEClient(context.Background(), ".config/acme")
 	// TODO(dotdoom): set c.DNS
 	if err == nil {
-		err = c.CheckOrRefreshCertificate(context.Background(),
-			"rover.dasfoo.org", "fb.rover.dasfoo.org")
+		err = c.CheckOrRefreshCertificate(context.Background(), domains...)
 	}
 	if err == nil {
-		certFile, keyFile := c.GetDomainsCertpairPath("rover.dasfoo.org", "fb.rover.dasfoo.org")
+		certFile, keyFile := c.GetDomainsCertpairPath(domains...)
 		log.Println("Starting HTTPS server")
 		return httpSrv.ListenAndServeTLS(certFile, keyFile)
 	}
@@ -293,9 +299,22 @@ func main() {
 	} else {
 		log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
 	}
+
 	flag.Parse()
-	log.Println("Properties from command line:", *laddr)
-	log.Println("Flag for startup script", *test)
+
+	if *testMode {
+		log.Println("*** THE APPLICATION IS RUNNING IN TESTING MODE ***")
+	}
+
+	domains = strings.Split(*domainsString, ",")
+	if len(domains) < 1 {
+		// TODO(dotdoom): ignore and proceed w/o DNS & HTTPS
+		log.Fatal("Need at least one domain")
+	}
+	if *cloudDNSZone == "" {
+		*cloudDNSZone = strings.Replace(domains[0], ".", "-", -1)
+	}
+
 	if bus, err := i2c.NewBus(1); err != nil {
 		log.Fatal(err)
 	} else {
