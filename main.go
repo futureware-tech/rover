@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -14,15 +13,14 @@ import (
 	"time"
 
 	"github.com/dasfoo/i2c"
+	"github.com/dasfoo/rover/auth"
 	"github.com/dasfoo/rover/bb"
 	"github.com/dasfoo/rover/camera"
 	"github.com/dasfoo/rover/mc"
 	"github.com/dasfoo/rover/network"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2/google"
 
 	dns "google.golang.org/api/dns/v1"
-	"google.golang.org/api/storage/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -50,6 +48,7 @@ var (
 		"Google Cloud DNS Zone name, defaults to the first domain, dots replaced with dashes")
 
 	domains []string
+	am      *auth.Manager
 )
 
 func getError(e error) error {
@@ -59,7 +58,7 @@ func getError(e error) error {
 // MoveRover implements
 func (s *server) MoveRover(ctx context.Context,
 	in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
-	if err := validateUser(ctx); err != nil {
+	if err := checkAccess(ctx); err != nil {
 		log.Printf("UserValid: %s", err)
 		return nil, err
 	}
@@ -82,7 +81,7 @@ func (s *server) MoveRover(ctx context.Context,
 
 func (s *server) GetBatteryPercentage(ctx context.Context,
 	in *pb.BatteryPercentageRequest) (*pb.BatteryPercentageResponse, error) {
-	if err := validateUser(ctx); err != nil {
+	if err := checkAccess(ctx); err != nil {
 		log.Printf("UserValid: %s", err)
 		return nil, err
 	}
@@ -98,7 +97,7 @@ func (s *server) GetBatteryPercentage(ctx context.Context,
 
 func (s *server) GetAmbientLight(ctx context.Context,
 	in *pb.AmbientLightRequest) (*pb.AmbientLightResponse, error) {
-	if err := validateUser(ctx); err != nil {
+	if err := checkAccess(ctx); err != nil {
 		log.Printf("UserValid: %s", err)
 		return nil, err
 	}
@@ -114,7 +113,7 @@ func (s *server) GetAmbientLight(ctx context.Context,
 
 func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 	in *pb.TemperatureAndHumidityRequest) (*pb.TemperatureAndHumidityResponse, error) {
-	if err := validateUser(ctx); err != nil {
+	if err := checkAccess(ctx); err != nil {
 		log.Printf("UserValid: %s", err)
 		return nil, err
 	}
@@ -127,37 +126,6 @@ func (s *server) GetTemperatureAndHumidity(ctx context.Context,
 		Temperature: int32(t),
 		Humidity:    int32(h),
 	}, nil
-}
-
-func downloadPassword() (string, error) {
-	var (
-		client *http.Client
-		svc    *storage.Service
-		e      error
-	)
-
-	if client, e = google.DefaultClient(context.Background(),
-		storage.DevstorageReadOnlyScope); e == nil {
-		if svc, e = storage.New(client); e != nil {
-			return "", e
-		}
-	} else {
-		return "", e
-	}
-
-	var (
-		r     *http.Response
-		entry struct {
-			SecretKey string `json:"secret_key"`
-		}
-	)
-	if r, e = svc.Objects.Get(*gcsBucket, "password.json").Download(); e == nil {
-		var b bytes.Buffer
-		if _, e = b.ReadFrom(r.Body); e == nil {
-			e = json.Unmarshal(b.Bytes(), &entry)
-		}
-	}
-	return entry.SecretKey, e
 }
 
 func updateDNS(ip string) error {
@@ -174,42 +142,10 @@ func updateDNS(ip string) error {
 		}, true)
 }
 
-func validatePassword(password string) error {
-	pwd, err := downloadPassword()
-	if err != nil {
-		return err
-	}
-	if password != pwd {
-		return errors.New("Wrong password for getting data")
-	}
-	return nil
-}
-
-func readAuthFromMetadata(ctx context.Context) (string, error) {
-	const key = "authentication"
-	// FromContext returns error as a bool
-	val, err := metadata.FromContext(ctx)
-	if !err {
-		return "", errors.New("Error appears getting metadata")
-	}
-	return val[key][0], nil
-}
-
-func validateUser(ctx context.Context) error {
-	pwd, err := readAuthFromMetadata(ctx)
-	if err != nil {
-		return err
-	}
-	if err := validatePassword(pwd); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *server) ReadEncoders(ctx context.Context,
 	in *pb.ReadEncodersRequest) (*pb.ReadEncodersResponse, error) {
 
-	if err := validateUser(ctx); err != nil {
+	if err := checkAccess(ctx); err != nil {
 		log.Printf("UserValid: %s", err)
 		return nil, err
 	}
@@ -269,13 +205,53 @@ func startForwarding() error {
 	return err
 }
 
+func getFirstValue(md metadata.MD, name string) (string, error) {
+	values := md[name]
+	if len(values) != 1 {
+		return "", fmt.Errorf("Metadata key not found: %s", name)
+	}
+	return values[0], nil
+}
+
+const (
+	authUserKey  = "auth-user"
+	authTokenKey = "auth-token"
+)
+
+func getUserAndToken(ctx context.Context) (string, string, error) {
+	md, success := metadata.FromContext(ctx)
+	if !success {
+		return "", "", errors.New("No metadata found in the request")
+	}
+	user, err := getFirstValue(md, authUserKey)
+	var token string
+	if err == nil {
+		token, err = getFirstValue(md, authTokenKey)
+	}
+	return user, token, err
+}
+
+func checkAccess(ctx context.Context) error {
+	user, token, err := getUserAndToken(ctx)
+	if err != nil {
+		return err
+	}
+	return am.CheckAccess(user, token)
+}
+
 func startServer() error {
 	s := grpc.NewServer()
 	pb.RegisterRoverServiceServer(s, &server{})
 	httpSrv := &http.Server{
 		Addr: *listenAddress,
 		Handler: routingHandler(s, http.HandlerFunc((&camera.Server{
-			ValidatePassword: validatePassword,
+			ValidatePassword: func(password string) error {
+				userAndToken := strings.Split(password, ":")
+				if len(userAndToken) != 1 {
+					return errors.New("Invalid password format")
+				}
+				return am.CheckAccess(userAndToken[0], userAndToken[1])
+			},
 		}).Handler)),
 	}
 
@@ -324,6 +300,15 @@ func main() {
 		board = bb.NewBB(bus, bb.Address)
 		motors = mc.NewMC(bus, mc.Address)
 	}
+
+	var ame error
+	am, ame = auth.NewManager(context.Background(), *gcsBucket)
+	if ame != nil {
+		// TODO(dotdoom): this is not really fatal. Keep going without auth if it fails,
+		// but only if gcsBucket is not supplied.
+		log.Fatal("Can't initialize auth manager:", ame)
+	}
+
 	if err := startForwarding(); err != nil {
 		log.Println("Failed to setup forwarding:", err)
 	}
