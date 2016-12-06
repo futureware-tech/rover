@@ -247,7 +247,7 @@ func startServer() error {
 		Handler: routingHandler(s, http.HandlerFunc((&camera.Server{
 			ValidatePassword: func(password string) error {
 				userAndToken := strings.Split(password, ":")
-				if len(userAndToken) != 1 {
+				if len(userAndToken) != 2 {
 					return errors.New("Invalid password format")
 				}
 				return am.CheckAccess(userAndToken[0], userAndToken[1])
