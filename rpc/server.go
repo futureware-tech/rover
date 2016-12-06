@@ -3,7 +3,6 @@ package rpc
 import (
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"golang.org/x/net/context"
@@ -23,6 +22,17 @@ type Server struct {
 	AM     *auth.Manager
 	Motors *mc.MC
 	Board  *bb.BB
+}
+
+// CreateGRPCServer returns a new GRPC server instance with RoverService registered
+// and auth interceptors installed
+func (s *Server) CreateGRPCServer() *grpc.Server {
+	server := grpc.NewServer(
+		grpc.StreamInterceptor(s.streamInterceptor),
+		grpc.UnaryInterceptor(s.unaryInterceptor),
+	)
+	pb.RegisterRoverServiceServer(server, s)
+	return server
 }
 
 // Error definitions
@@ -64,37 +74,52 @@ func getUserAndToken(ctx context.Context) (string, string, error) {
 }
 
 func (s *Server) checkAccess(ctx context.Context) error {
+	if s.AM == nil {
+		return nil
+	}
 	user, token, err := getUserAndToken(ctx)
 	if err != nil {
 		return err
 	}
 	return s.AM.CheckAccess(user, token)
+}
 
+func (s *Server) streamInterceptor(srv interface{}, stream grpc.ServerStream,
+	info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	if err := s.checkAccess(stream.Context()); err != nil {
+		return err
+	}
+	// TODO(dotdoom): process error from handler to getGRPCError automatically if needed.
+	return handler(srv, stream)
+}
+
+func (s *Server) unaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler) (interface{}, error) {
+	if err := s.checkAccess(ctx); err != nil {
+		return nil, err
+	}
+	// TODO(dotdoom): process error from handler to getGRPCError automatically if needed.
+	return handler(ctx, req)
 }
 
 // MoveRover is an example of using motors
 func (s *Server) MoveRover(ctx context.Context,
 	in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
-	var err error
-	if err = s.checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
 	if s.Motors == nil {
 		return nil, ErrMotorsSoftwareBlocked
 	}
-	if err = s.Motors.Left(int8(in.Left)); err != nil {
+	if err := s.Motors.Left(int8(in.Left)); err != nil {
 		return nil, err
 	}
-	if err = s.Motors.Right(int8(in.Right)); err != nil {
+	if err := s.Motors.Right(int8(in.Right)); err != nil {
 		return nil, err
 	}
 	time.Sleep(1 * time.Second)
 
-	if err = s.Motors.Left(0); err != nil {
+	if err := s.Motors.Left(0); err != nil {
 		return nil, err
 	}
-	if err = s.Motors.Right(0); err != nil {
+	if err := s.Motors.Right(0); err != nil {
 		return nil, err
 	}
 	return &pb.RoverWheelResponse{}, nil
@@ -103,16 +128,11 @@ func (s *Server) MoveRover(ctx context.Context,
 // GetBatteryPercentage returns battery value as reported by the Board
 func (s *Server) GetBatteryPercentage(ctx context.Context,
 	in *pb.BatteryPercentageRequest) (*pb.BatteryPercentageResponse, error) {
-	var err error
-	if err = s.checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
 	if s.Board == nil {
 		return nil, ErrBoardSoftwareBlocked
 	}
-	var batteryPercentage byte
-	if batteryPercentage, err = s.Board.GetBatteryPercentage(); err != nil {
+	batteryPercentage, err := s.Board.GetBatteryPercentage()
+	if err != nil {
 		return nil, s.getGRPCError(err)
 	}
 	return &pb.BatteryPercentageResponse{
@@ -123,16 +143,11 @@ func (s *Server) GetBatteryPercentage(ctx context.Context,
 // GetAmbientLight uses ambient light sensor
 func (s *Server) GetAmbientLight(ctx context.Context,
 	in *pb.AmbientLightRequest) (*pb.AmbientLightResponse, error) {
-	var err error
-	if err = s.checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
 	if s.Board == nil {
 		return nil, ErrBoardSoftwareBlocked
 	}
-	var light uint16
-	if light, err = s.Board.GetAmbientLight(); err != nil {
+	light, err := s.Board.GetAmbientLight()
+	if err != nil {
 		return nil, s.getGRPCError(err)
 	}
 	return &pb.AmbientLightResponse{
@@ -143,16 +158,11 @@ func (s *Server) GetAmbientLight(ctx context.Context,
 // GetTemperatureAndHumidity uses DHT humidity sensor
 func (s *Server) GetTemperatureAndHumidity(ctx context.Context,
 	in *pb.TemperatureAndHumidityRequest) (*pb.TemperatureAndHumidityResponse, error) {
-	var err error
-	if err = s.checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
 	if s.Board == nil {
 		return nil, ErrBoardSoftwareBlocked
 	}
-	var t, h byte
-	if t, h, err = s.Board.GetTemperatureAndHumidity(); err != nil {
+	t, h, err := s.Board.GetTemperatureAndHumidity()
+	if err != nil {
 		return nil, s.getGRPCError(err)
 	}
 	return &pb.TemperatureAndHumidityResponse{
@@ -164,17 +174,14 @@ func (s *Server) GetTemperatureAndHumidity(ctx context.Context,
 // ReadEncoders reads current absolute values from 4 encoders
 func (s *Server) ReadEncoders(ctx context.Context,
 	in *pb.ReadEncodersRequest) (*pb.ReadEncodersResponse, error) {
-	var err error
-	if err = s.checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
-
 	if s.Motors == nil {
 		return nil, ErrMotorsSoftwareBlocked
 	}
 
-	var leftFront, leftBack, rightFront, rightBack int32
+	var (
+		leftFront, leftBack, rightFront, rightBack int32
+		err                                        error
+	)
 	if leftFront, err = s.Motors.ReadEncoder(mc.EncoderLeftFront); err != nil {
 		return nil, s.getGRPCError(err)
 	}
