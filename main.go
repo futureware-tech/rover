@@ -20,9 +20,6 @@ import (
 	"golang.org/x/net/context"
 
 	dns "google.golang.org/api/dns/v1"
-	"google.golang.org/grpc"
-
-	pb "github.com/dasfoo/rover/proto"
 )
 
 var (
@@ -59,6 +56,7 @@ func updateDNS(ip string) error {
 		}, true)
 }
 
+// https://github.com/grpc/grpc-go/issues/106#issuecomment-246978683
 func routingHandler(grpcHandler http.Handler, otherHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
@@ -93,23 +91,23 @@ func startForwarding() error {
 }
 
 func startServer() error {
-	s := grpc.NewServer()
-	pb.RegisterRoverServiceServer(s, &rpc.Server{
-		AM:     am,
-		Motors: motors,
-		Board:  board,
-	})
 	httpSrv := &http.Server{
 		Addr: *listenAddress,
-		Handler: routingHandler(s, http.HandlerFunc((&camera.Server{
-			ValidatePassword: func(password string) error {
-				userAndToken := strings.Split(password, ":")
-				if len(userAndToken) != 2 {
-					return errors.New("Invalid password format")
-				}
-				return am.CheckAccess(userAndToken[0], userAndToken[1])
-			},
-		}).Handler)),
+		Handler: routingHandler(
+			(&rpc.Server{
+				AM:     am,
+				Motors: motors,
+				Board:  board,
+			}).CreateGRPCServer(),
+			http.HandlerFunc((&camera.Server{
+				ValidatePassword: func(password string) error {
+					userAndToken := strings.Split(password, ":")
+					if len(userAndToken) != 2 {
+						return errors.New("Invalid password format")
+					}
+					return am.CheckAccess(userAndToken[0], userAndToken[1])
+				},
+			}).Handler)),
 	}
 
 	c, err := network.NewACMEClient(context.Background(), ".config/acme")
