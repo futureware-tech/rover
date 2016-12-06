@@ -3,14 +3,12 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/dasfoo/i2c"
 	"github.com/dasfoo/rover/auth"
@@ -18,18 +16,14 @@ import (
 	"github.com/dasfoo/rover/camera"
 	"github.com/dasfoo/rover/mc"
 	"github.com/dasfoo/rover/network"
+	"github.com/dasfoo/rover/rpc"
 	"golang.org/x/net/context"
 
 	dns "google.golang.org/api/dns/v1"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 
 	pb "github.com/dasfoo/rover/proto"
 )
-
-// server is used to implement roverserver.RoverServiceServer.
-type server struct{}
 
 var (
 	board  *bb.BB
@@ -51,83 +45,6 @@ var (
 	am      *auth.Manager
 )
 
-func getError(e error) error {
-	return grpc.Errorf(codes.Unavailable, "%s", e.Error())
-}
-
-// MoveRover implements
-func (s *server) MoveRover(ctx context.Context,
-	in *pb.RoverWheelRequest) (*pb.RoverWheelResponse, error) {
-	if err := checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
-	if e := motors.Left(int8(in.Left)); e != nil {
-		return nil, e
-	}
-	if e := motors.Right(int8(in.Right)); e != nil {
-		return nil, e
-	}
-	time.Sleep(1 * time.Second)
-
-	if e := motors.Left(0); e != nil {
-		return nil, e
-	}
-	if e := motors.Right(0); e != nil {
-		return nil, e
-	}
-	return &pb.RoverWheelResponse{}, nil
-}
-
-func (s *server) GetBatteryPercentage(ctx context.Context,
-	in *pb.BatteryPercentageRequest) (*pb.BatteryPercentageResponse, error) {
-	if err := checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
-	var batteryPercentage byte
-	var e error
-	if batteryPercentage, e = board.GetBatteryPercentage(); e != nil {
-		return nil, getError(e)
-	}
-	return &pb.BatteryPercentageResponse{
-		Battery: int32(batteryPercentage),
-	}, nil
-}
-
-func (s *server) GetAmbientLight(ctx context.Context,
-	in *pb.AmbientLightRequest) (*pb.AmbientLightResponse, error) {
-	if err := checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
-	var light uint16
-	var e error
-	if light, e = board.GetAmbientLight(); e != nil {
-		return nil, getError(e)
-	}
-	return &pb.AmbientLightResponse{
-		Light: int32(light),
-	}, nil
-}
-
-func (s *server) GetTemperatureAndHumidity(ctx context.Context,
-	in *pb.TemperatureAndHumidityRequest) (*pb.TemperatureAndHumidityResponse, error) {
-	if err := checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
-	var t, h byte
-	var e error
-	if t, h, e = board.GetTemperatureAndHumidity(); e != nil {
-		return nil, getError(e)
-	}
-	return &pb.TemperatureAndHumidityResponse{
-		Temperature: int32(t),
-		Humidity:    int32(h),
-	}, nil
-}
-
 func updateDNS(ip string) error {
 	c, e := network.NewDNSClient(context.Background(), *cloudDNSZone)
 	if e != nil {
@@ -140,36 +57,6 @@ func updateDNS(ip string) error {
 			Rrdatas: []string{ip},
 			Ttl:     60,
 		}, true)
-}
-
-func (s *server) ReadEncoders(ctx context.Context,
-	in *pb.ReadEncodersRequest) (*pb.ReadEncodersResponse, error) {
-
-	if err := checkAccess(ctx); err != nil {
-		log.Printf("UserValid: %s", err)
-		return nil, err
-	}
-
-	var leftFront, leftBack, rightFront, rightBack int32
-	var e error
-	if leftFront, e = motors.ReadEncoder(mc.EncoderLeftFront); e != nil {
-		return nil, getError(e)
-	}
-	if leftBack, e = motors.ReadEncoder(mc.EncoderLeftBack); e != nil {
-		return nil, getError(e)
-	}
-	if rightFront, e = motors.ReadEncoder(mc.EncoderRightFront); e != nil {
-		return nil, getError(e)
-	}
-	if rightBack, e = motors.ReadEncoder(mc.EncoderRightBack); e != nil {
-		return nil, getError(e)
-	}
-	return &pb.ReadEncodersResponse{
-		LeftFront:  leftFront,
-		LeftBack:   leftBack,
-		RightFront: rightFront,
-		RightBack:  rightBack,
-	}, nil
 }
 
 func routingHandler(grpcHandler http.Handler, otherHandler http.Handler) http.Handler {
@@ -205,43 +92,13 @@ func startForwarding() error {
 	return err
 }
 
-func getFirstValue(md metadata.MD, name string) (string, error) {
-	values := md[name]
-	if len(values) != 1 {
-		return "", fmt.Errorf("Metadata key not found: %s", name)
-	}
-	return values[0], nil
-}
-
-const (
-	authUserKey  = "auth-user"
-	authTokenKey = "auth-token"
-)
-
-func getUserAndToken(ctx context.Context) (string, string, error) {
-	md, success := metadata.FromContext(ctx)
-	if !success {
-		return "", "", errors.New("No metadata found in the request")
-	}
-	user, err := getFirstValue(md, authUserKey)
-	var token string
-	if err == nil {
-		token, err = getFirstValue(md, authTokenKey)
-	}
-	return user, token, err
-}
-
-func checkAccess(ctx context.Context) error {
-	user, token, err := getUserAndToken(ctx)
-	if err != nil {
-		return err
-	}
-	return am.CheckAccess(user, token)
-}
-
 func startServer() error {
 	s := grpc.NewServer()
-	pb.RegisterRoverServiceServer(s, &server{})
+	pb.RegisterRoverServiceServer(s, &rpc.Server{
+		AM:     am,
+		Motors: motors,
+		Board:  board,
+	})
 	httpSrv := &http.Server{
 		Addr: *listenAddress,
 		Handler: routingHandler(s, http.HandlerFunc((&camera.Server{
@@ -283,7 +140,7 @@ func main() {
 	}
 
 	domains = strings.Split(*domainsString, ",")
-	if len(domains) < 1 {
+	if domains[0] == "" {
 		// TODO(dotdoom): ignore and proceed w/o DNS & HTTPS
 		log.Fatal("Need at least one domain")
 	}
