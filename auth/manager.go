@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"errors"
+	"log"
 	"time"
 
 	"golang.org/x/net/context"
@@ -22,6 +23,10 @@ type Manager struct {
 
 // NewManager connects to GCS
 func NewManager(ctx context.Context, gcsBucket string) (*Manager, error) {
+	if gcsBucket == "" {
+		log.Println("Authentication is disabled, no GCS bucket with authentication data provided")
+		return &Manager{}, nil
+	}
 	am := Manager{
 		// 5 minute TTL, purge every 30 seconds.
 		authCache: cache.New(5*time.Minute, 30*time.Second),
@@ -42,6 +47,7 @@ func (am *Manager) fetchAuthToken(user string) (string, error) {
 	}
 	var b bytes.Buffer
 	_, err = b.ReadFrom(r.Body)
+	// TODO(dotdoom): encode files in JSON
 	return string(b.Bytes()), err
 }
 
@@ -60,14 +66,23 @@ func (am *Manager) getAuthToken(user string) (string, error) {
 // CheckAccess returns nil if access is granted
 func (am *Manager) CheckAccess(user, token string) error {
 	// TODO(dotdoom): add 3rd parameter, level
-	// TODO(dotdoom): encode files in JSON
-	actualToken, err := am.getAuthToken(user)
-	if err != nil {
-		return err
+
+	var (
+		actualToken string
+		err         error
+	)
+	if am.gcs == nil {
+		actualToken, err = am.getAuthToken(user)
+		if err != nil {
+			return err
+		}
+		if actualToken == "" {
+			return errors.New("Cannot verify the token")
+		}
+	} else {
+		actualToken = ""
 	}
-	if actualToken == "" {
-		return errors.New("Cannot verify the token")
-	}
+
 	if actualToken != token {
 		return errors.New("Incorrect token supplied")
 	}

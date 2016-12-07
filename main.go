@@ -30,19 +30,25 @@ var (
 		"Testing mode (running application from dev environment)")
 	listenAddress = flag.String("listen", "",
 		"Listen address: [<ip>]:<port>")
-	gcsBucket = flag.String("gcs_bucket", "rover-auth",
+	gcsBucket = flag.String("gcs_bucket", "",
 		"Name of GCS bucket containing authorization data")
-	domainsString = flag.String("domains", "rover.dasfoo.org,fb.rover.dasfoo.org",
+	domainsString = flag.String("domains", "",
 		"List of domains for DNS updates, first domain will get DNS updates, "+
 			"but TLS certificate will be obtained for all of them")
 	cloudDNSZone = flag.String("cloud_dns_zone", "",
-		"Google Cloud DNS Zone name, defaults to the first domain, dots replaced with dashes")
+		"Google Cloud DNS Zone name for DNS updates")
 
 	domains []string
 	am      *auth.Manager
 )
 
 func updateDNS(ip string) error {
+	if *cloudDNSZone == "" {
+		return errors.New("DNS updates are disabled (no Google Cloud DNS zone name provided)")
+	}
+	if len(domains) == 0 {
+		return errors.New("DNS updates are disabled (no domain names provided)")
+	}
 	c, e := network.NewDNSClient(context.Background(), *cloudDNSZone)
 	if e != nil {
 		return e
@@ -110,17 +116,20 @@ func startServer() error {
 			}).Handler)),
 	}
 
-	c, err := network.NewACMEClient(context.Background(), ".config/acme")
-	// TODO(dotdoom): set c.DNS
-	if err == nil {
-		err = c.CheckOrRefreshCertificate(context.Background(), domains...)
+	if len(domains) > 0 {
+		c, err := network.NewACMEClient(context.Background(), ".config/acme")
+		// TODO(dotdoom): set c.DNS
+		if err == nil {
+			err = c.CheckOrRefreshCertificate(context.Background(), domains...)
+		}
+		if err == nil {
+			certFile, keyFile := c.GetDomainsCertpairPath(domains...)
+			log.Println("Starting HTTPS server")
+			return httpSrv.ListenAndServeTLS(certFile, keyFile)
+		}
+		log.Fatal(err)
 	}
-	if err == nil {
-		certFile, keyFile := c.GetDomainsCertpairPath(domains...)
-		log.Println("Starting HTTPS server")
-		return httpSrv.ListenAndServeTLS(certFile, keyFile)
-	}
-	log.Println("Starting HTTP server, no TLS:", err)
+	log.Println("Starting HTTP server (no domains provided)")
 	return httpSrv.ListenAndServe()
 }
 
@@ -139,11 +148,7 @@ func main() {
 
 	domains = strings.Split(*domainsString, ",")
 	if domains[0] == "" {
-		// TODO(dotdoom): ignore and proceed w/o DNS & HTTPS
-		log.Fatal("Need at least one domain")
-	}
-	if *cloudDNSZone == "" {
-		*cloudDNSZone = strings.Replace(domains[0], ".", "-", -1)
+		domains = domains[:0]
 	}
 
 	if bus, err := i2c.NewBus(1); err != nil {
@@ -159,8 +164,6 @@ func main() {
 	var ame error
 	am, ame = auth.NewManager(context.Background(), *gcsBucket)
 	if ame != nil {
-		// TODO(dotdoom): this is not really fatal. Keep going without auth if it fails,
-		// but only if gcsBucket is not supplied.
 		log.Fatal("Can't initialize auth manager:", ame)
 	}
 
