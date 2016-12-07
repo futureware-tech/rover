@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -117,7 +119,12 @@ func startServer() error {
 	}
 
 	if len(domains) > 0 {
-		c, err := network.NewACMEClient(context.Background(), ".config/acme")
+		usr, usre := user.Current()
+		if usre != nil {
+			log.Fatal(usre)
+		}
+		c, err := network.NewACMEClient(context.Background(),
+			filepath.Join(usr.HomeDir, ".config/acme"))
 		// TODO(dotdoom): set c.DNS
 		if err == nil {
 			err = c.CheckOrRefreshCertificate(context.Background(), domains...)
