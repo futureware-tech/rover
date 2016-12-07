@@ -5,7 +5,7 @@ After=network-online.target
 [Service]
 User=pi
 Type=simple
-ExecStart=/home/pi/rover/rover -listen=:1234 -gcs_bucket=rover-auth
+ExecStart=/home/pi/rover/rover -listen=:1234 -gcs_bucket=rover-auth -domains=rover.dasfoo.org,fb.rover.dasfoo.org -cloud_dns_zone=rover-dasfoo-org
 RestartSec=1
 Restart=always
 StartLimitInterval=0
