@@ -30,7 +30,7 @@ var (
 		"Testing mode (running application from dev environment)")
 	listenAddress = flag.String("listen", "",
 		"Listen address: [<ip>]:<port>")
-	gcsBucket = flag.String("gcs_bucket", "rover-auth",
+	gcsBucket = flag.String("gcs_bucket", "",
 		"Name of GCS bucket containing authorization data")
 	domainsString = flag.String("domains", "rover.dasfoo.org,fb.rover.dasfoo.org",
 		"List of domains for DNS updates, first domain will get DNS updates, "+
@@ -159,8 +159,6 @@ func main() {
 	var ame error
 	am, ame = auth.NewManager(context.Background(), *gcsBucket)
 	if ame != nil {
-		// TODO(dotdoom): this is not really fatal. Keep going without auth if it fails,
-		// but only if gcsBucket is not supplied.
 		log.Fatal("Can't initialize auth manager:", ame)
 	}
 
