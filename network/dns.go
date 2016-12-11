@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os/user"
+	"path/filepath"
 	"reflect"
 	"time"
 
@@ -30,8 +32,16 @@ func NewDNSClient(ctx context.Context, zone string) (*DNSClient, error) {
 	var credentials *google.DefaultCredentials
 	credentials, err = google.FindDefaultCredentials(ctx)
 	*/
+	var currentUser *user.User
+	currentUser, err = user.Current()
+	if err != nil {
+		return nil, err
+	}
 	var credentialsData []byte
-	credentialsData, err = ioutil.ReadFile(".config/gcloud/application_default_credentials.json")
+	credentialsData, err = ioutil.ReadFile(filepath.Join(
+		currentUser.HomeDir,
+		".config/gcloud/application_default_credentials.json",
+	))
 	if err != nil {
 		return nil, err
 	}
