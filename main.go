@@ -87,6 +87,7 @@ func startForwarding() error {
 	portInt, err = strconv.Atoi(port)
 	if err == nil {
 		externalIP, err = network.SetupForwarding(uint16(portInt), uint16(portInt))
+		// TODO(dotdoom): get external IP from https://myexternalip.com/#golang
 		if err == nil {
 			go func() {
 				if err = updateDNS(externalIP); err != nil {

@@ -66,12 +66,14 @@ func (am *Manager) getAuthToken(user string) (string, error) {
 // CheckAccess returns nil if access is granted
 func (am *Manager) CheckAccess(user, token string) error {
 	// TODO(dotdoom): add 3rd parameter, level
-
+	// TODO(dotdoom): log auth errors
 	var (
 		actualToken string
 		err         error
 	)
 	if am.gcs == nil {
+		actualToken = ""
+	} else {
 		actualToken, err = am.getAuthToken(user)
 		if err != nil {
 			return err
@@ -79,8 +81,6 @@ func (am *Manager) CheckAccess(user, token string) error {
 		if actualToken == "" {
 			return errors.New("Cannot verify the token")
 		}
-	} else {
-		actualToken = ""
 	}
 
 	if actualToken != token {
