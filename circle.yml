@@ -20,9 +20,8 @@ dependencies:
   override:
   - sudo apt install -yq --no-install-suggests --no-install-recommends --force-yes libi2c-dev gcc-arm-linux-gnueabi libc6-dev-armel-cross
   - pip install --user --upgrade platformio
-  - platformio lib --global install "DHT sensor library@1.2.3" "EasyVR"
-  # Disabling this step because it would update DHT library, which is broken at latest (1.3.0).
-  #- platformio lib --global update
+  - platformio lib --global install "DHT sensor library" "EasyVR"
+  - platformio lib --global update
   # The default action of Circle CI is weird. It creates a symlink to the project in ~/.go_project,
   # but dependencies in ~/.go_workspace. We don't want to mess around with this setup and just put
   # everything together.
